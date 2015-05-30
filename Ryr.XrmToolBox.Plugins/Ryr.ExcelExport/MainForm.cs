@@ -315,33 +315,24 @@ namespace Ryr.ExcelExport
                     e.Result = recordCount;
 
                 },
-                e =>
-                {
-                    MessageBox.Show(string.Format("{0} records exported", e.Result));
-                },
-                e =>
-                {
-                    SetWorkingMessage(e.UserState.ToString());
-                });
+                e => MessageBox.Show(string.Format("{0} records exported", e.Result)),
+                e => SetWorkingMessage(e.UserState.ToString()));
         }
-        private string UnwrapAttribute(string attributeName, string entityName, object attributeValue)
+
+        private object UnwrapAttribute(string attributeName, string entityName, object attributeValue)
         {
-            var attributeUnwrappedValue = string.Empty;
-            if (attributeName.Contains("."))
-            {
-                entityName = attributeName.Substring(0, attributeName.IndexOf('.'));
-                attributeName = attributeName.Substring(attributeName.IndexOf('.') + 1);
-            }
+            object attributeUnwrappedValue;
+
             if (attributeValue == null)
             {
-                return attributeUnwrappedValue;
+                return string.Empty;
             }
             if (attributeValue is EntityReference)
             {
                 attributeUnwrappedValue = ((EntityReference)attributeValue).Name;
             }
             else
-            if (attributeValue is OptionSetValue)
+            if (attributeValue is OptionSetValue || attributeValue is bool)
             {
                 var cacheKey = string.Format("{0}:{1}", attributeName, entityName);
                 if (optionsetCache.ContainsKey(cacheKey))
@@ -350,30 +341,31 @@ namespace Ryr.ExcelExport
                 }
                 else
                 {
-                    attributeUnwrappedValue =
-                        RetrieveOptionsetText(((OptionSetValue)attributeValue).Value, attributeName, entityName);
-                    optionsetCache.Add(cacheKey, attributeUnwrappedValue);
+                    if (attributeValue is bool)
+                    {
+                        attributeUnwrappedValue = RetrieveBooleanLabel((bool)attributeValue, attributeName, entityName);
+                    }
+                    else
+                    {
+                        attributeUnwrappedValue = RetrieveOptionsetText(((OptionSetValue)attributeValue).Value, attributeName, entityName);
+                    }
+                    optionsetCache.Add(cacheKey, attributeUnwrappedValue.ToString());
                 }
             }
             else
             if (attributeValue is Money)
             {
-                attributeUnwrappedValue = ((Money)attributeValue).Value.ToString("C");
+                attributeUnwrappedValue = ((Money)attributeValue).Value;
             }
             else
-            if (attributeValue is double)
+            if (attributeValue is Guid)
             {
-                attributeUnwrappedValue = ((double)attributeValue).ToString("F");
+                attributeUnwrappedValue = ((Guid)attributeValue).ToString("B");
             }
             else
-            if (attributeValue is int)
+            if (attributeValue is DateTime)
             {
-                attributeUnwrappedValue = ((int)attributeValue).ToString(CultureInfo.InvariantCulture);
-            }
-            else
-            if (attributeValue is float)
-            {
-                attributeUnwrappedValue = ((float)attributeValue).ToString("F");
+                attributeUnwrappedValue = ((DateTime)attributeValue).ToString("s");
             }
             else
             if (attributeValue is AliasedValue)
@@ -381,11 +373,35 @@ namespace Ryr.ExcelExport
                 attributeUnwrappedValue = UnwrapAttribute(attributeName, entityName, ((AliasedValue)attributeValue).Value);
             }
             else
-            if (attributeValue is string)
             {
-                attributeUnwrappedValue = attributeValue.ToString();
+                attributeUnwrappedValue = attributeValue;
             }
-            return !string.IsNullOrEmpty(attributeUnwrappedValue) ? attributeUnwrappedValue : "";
+            return attributeUnwrappedValue;
+        }
+
+        private string RetrieveBooleanLabel(bool optionsetValue, string attributeName, string entityName)
+        {
+            var optionsetText = string.Empty;
+            var retrieveAttributeRequest = new RetrieveAttributeRequest
+            {
+                EntityLogicalName = entityName,
+                LogicalName = attributeName,
+                RetrieveAsIfPublished = true
+            };
+            var retrieveAttributeResponse = (RetrieveAttributeResponse)Service.Execute(retrieveAttributeRequest);
+            var optionSets = retrieveAttributeResponse.AttributeMetadata;
+            OptionMetadata optionMetaData = null;
+            if (optionSets is BooleanAttributeMetadata)
+            {
+                optionMetaData = optionsetValue
+                    ? ((BooleanAttributeMetadata)optionSets).OptionSet.TrueOption
+                    : ((BooleanAttributeMetadata)optionSets).OptionSet.FalseOption;
+            }
+            if (optionMetaData != null)
+            {
+                optionsetText = optionMetaData.Label.UserLocalizedLabel.Label;
+            }
+            return optionsetText;
         }
 
         private string RetrieveOptionsetText(int optionsetValue, string attributeName, string entityName)
@@ -398,11 +414,23 @@ namespace Ryr.ExcelExport
                 RetrieveAsIfPublished = true
             };
             var retrieveAttributeResponse = (RetrieveAttributeResponse)Service.Execute(retrieveAttributeRequest);
-            var optionsets = (PicklistAttributeMetadata)retrieveAttributeResponse.AttributeMetadata;
-            var optionsetMatch = optionsets.OptionSet.Options.FirstOrDefault(x => x.Value == optionsetValue);
-            if (optionsetMatch != null)
+            var optionSets = retrieveAttributeResponse.AttributeMetadata;
+            OptionMetadata optionMetaData = null;
+            if (optionSets is PicklistAttributeMetadata)
             {
-                optionsetText = optionsetMatch.Label.UserLocalizedLabel.Label;
+                optionMetaData = ((PicklistAttributeMetadata)optionSets).OptionSet.Options.FirstOrDefault(x => x.Value == optionsetValue);
+            }
+            else if (optionSets is StatusAttributeMetadata)
+            {
+                optionMetaData = ((StatusAttributeMetadata)optionSets).OptionSet.Options.FirstOrDefault(x => x.Value == optionsetValue);
+            }
+            else if (optionSets is StateAttributeMetadata)
+            {
+                optionMetaData = ((StateAttributeMetadata)optionSets).OptionSet.Options.FirstOrDefault(x => x.Value == optionsetValue);
+            }
+            if (optionMetaData != null)
+            {
+                optionsetText = optionMetaData.Label.UserLocalizedLabel.Label;
             }
             return optionsetText;
         }
