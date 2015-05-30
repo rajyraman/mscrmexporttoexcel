@@ -29,6 +29,7 @@
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+            CSRichTextBoxSyntaxHighlighting.XMLViewerSettings xmlViewerSettings1 = new CSRichTextBoxSyntaxHighlighting.XMLViewerSettings();
             this.toolStripMain = new System.Windows.Forms.ToolStrip();
             this.tsbClose = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
@@ -37,6 +38,9 @@
             this.tsbRefresh = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
             this.tsbExportExcel = new System.Windows.Forms.ToolStripButton();
+            this.toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
+            this.tsbEditInFxb = new System.Windows.Forms.ToolStripButton();
+            this.toolStripSeparator5 = new System.Windows.Forms.ToolStripSeparator();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.gbEntities = new System.Windows.Forms.GroupBox();
             this.lvEntities = new System.Windows.Forms.ListView();
@@ -48,8 +52,7 @@
             this.columnHeader3 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader4 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.groupBox3 = new System.Windows.Forms.GroupBox();
-            this.txtFetchXml = new System.Windows.Forms.TextBox();
-            this.toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
+            this.txtFetchXml = new CSRichTextBoxSyntaxHighlighting.XMLViewer();
             this.toolStripMain.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -74,7 +77,9 @@
             this.tsbRefresh,
             this.toolStripSeparator3,
             this.tsbExportExcel,
-            this.toolStripSeparator4});
+            this.toolStripSeparator4,
+            this.tsbEditInFxb,
+            this.toolStripSeparator5});
             this.toolStripMain.Location = new System.Drawing.Point(0, 0);
             this.toolStripMain.Name = "toolStripMain";
             this.toolStripMain.Padding = new System.Windows.Forms.Padding(0, 0, 2, 0);
@@ -88,7 +93,7 @@
             this.tsbClose.Image = ((System.Drawing.Image)(resources.GetObject("tsbClose.Image")));
             this.tsbClose.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.tsbClose.Name = "tsbClose";
-            this.tsbClose.Size = new System.Drawing.Size(28, 29);
+            this.tsbClose.Size = new System.Drawing.Size(23, 29);
             this.tsbClose.Text = "Close";
             this.tsbClose.Click += new System.EventHandler(this.tsbClose_Click);
             // 
@@ -102,7 +107,7 @@
             this.tsbLoadEntities.Image = ((System.Drawing.Image)(resources.GetObject("tsbLoadEntities.Image")));
             this.tsbLoadEntities.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.tsbLoadEntities.Name = "tsbLoadEntities";
-            this.tsbLoadEntities.Size = new System.Drawing.Size(140, 29);
+            this.tsbLoadEntities.Size = new System.Drawing.Size(132, 29);
             this.tsbLoadEntities.Text = "Load Entities";
             this.tsbLoadEntities.Click += new System.EventHandler(this.tsbLoadEntities_Click);
             // 
@@ -113,6 +118,7 @@
             // 
             // tsbRefresh
             // 
+            this.tsbRefresh.Enabled = false;
             this.tsbRefresh.Image = ((System.Drawing.Image)(resources.GetObject("tsbRefresh.Image")));
             this.tsbRefresh.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.tsbRefresh.Name = "tsbRefresh";
@@ -127,12 +133,33 @@
             // 
             // tsbExportExcel
             // 
+            this.tsbExportExcel.Enabled = false;
             this.tsbExportExcel.Image = ((System.Drawing.Image)(resources.GetObject("tsbExportExcel.Image")));
             this.tsbExportExcel.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.tsbExportExcel.Name = "tsbExportExcel";
-            this.tsbExportExcel.Size = new System.Drawing.Size(156, 29);
+            this.tsbExportExcel.Size = new System.Drawing.Size(148, 29);
             this.tsbExportExcel.Text = "Export to Excel";
             this.tsbExportExcel.Click += new System.EventHandler(this.tsbExportExcel_Click);
+            // 
+            // toolStripSeparator4
+            // 
+            this.toolStripSeparator4.Name = "toolStripSeparator4";
+            this.toolStripSeparator4.Size = new System.Drawing.Size(6, 32);
+            // 
+            // tsbEditInFxb
+            // 
+            this.tsbEditInFxb.Enabled = false;
+            this.tsbEditInFxb.Image = ((System.Drawing.Image)(resources.GetObject("tsbEditInFxb.Image")));
+            this.tsbEditInFxb.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.tsbEditInFxb.Name = "tsbEditInFxb";
+            this.tsbEditInFxb.Size = new System.Drawing.Size(194, 29);
+            this.tsbEditInFxb.Text = "Edit FetchXml in FXB";
+            this.tsbEditInFxb.Click += new System.EventHandler(this.tsbEditInFxb_Click);
+            // 
+            // toolStripSeparator5
+            // 
+            this.toolStripSeparator5.Name = "toolStripSeparator5";
+            this.toolStripSeparator5.Size = new System.Drawing.Size(6, 32);
             // 
             // splitContainer1
             // 
@@ -277,17 +304,16 @@
             // 
             this.txtFetchXml.Dock = System.Windows.Forms.DockStyle.Fill;
             this.txtFetchXml.Location = new System.Drawing.Point(4, 24);
-            this.txtFetchXml.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            this.txtFetchXml.Multiline = true;
             this.txtFetchXml.Name = "txtFetchXml";
-            this.txtFetchXml.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            xmlViewerSettings1.AttributeKey = System.Drawing.Color.Red;
+            xmlViewerSettings1.AttributeValue = System.Drawing.Color.Blue;
+            xmlViewerSettings1.Element = System.Drawing.Color.DarkRed;
+            xmlViewerSettings1.Tag = System.Drawing.Color.Blue;
+            xmlViewerSettings1.Value = System.Drawing.Color.Black;
+            this.txtFetchXml.Settings = xmlViewerSettings1;
             this.txtFetchXml.Size = new System.Drawing.Size(841, 474);
             this.txtFetchXml.TabIndex = 0;
-            // 
-            // toolStripSeparator4
-            // 
-            this.toolStripSeparator4.Name = "toolStripSeparator4";
-            this.toolStripSeparator4.Size = new System.Drawing.Size(6, 32);
+            this.txtFetchXml.Text = "";
             // 
             // MainForm
             // 
@@ -311,7 +337,6 @@
             this.splitContainer2.ResumeLayout(false);
             this.groupBox2.ResumeLayout(false);
             this.groupBox3.ResumeLayout(false);
-            this.groupBox3.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -338,7 +363,9 @@
         private System.Windows.Forms.ListView lvViews;
         private System.Windows.Forms.ColumnHeader columnHeader3;
         private System.Windows.Forms.ColumnHeader columnHeader4;
-        private System.Windows.Forms.TextBox txtFetchXml;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator4;
+        private System.Windows.Forms.ToolStripButton tsbEditInFxb;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator5;
+        private CSRichTextBoxSyntaxHighlighting.XMLViewer txtFetchXml;
     }
 }

@@ -36,6 +36,10 @@
     <Reference Include="AntiXSSLibrary">
       <HintPath>..\packages\Microsoft.CrmSdk.Extensions.7.1.0\lib\net45\AntiXSSLibrary.dll</HintPath>
     </Reference>
+    <Reference Include="Cinteros.Xrm.FetchXmlBuilder, Version=46.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>Dependencies\Cinteros.Xrm.FetchXmlBuilder.dll</HintPath>
+    </Reference>
     <Reference Include="EPPlus">
       <HintPath>..\packages\EPPlus.4.0.4\lib\net20\EPPlus.dll</HintPath>
     </Reference>
@@ -128,6 +132,11 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="XmlViewer\CharacterEncoder.cs" />
+    <Compile Include="XmlViewer\XMLViewer.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="XmlViewer\XMLViewerSettings.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -144,6 +153,7 @@
     <Content Include="bin\Debug\Ryr.ExcelExport.pdb" />
     <Content Include="bin\Debug\XrmToolBox.exe" />
     <Content Include="bin\Debug\XrmToolBox.Settings.xml" />
+    <Content Include="Dependencies\Cinteros.Xrm.FetchXmlBuilder.dll" />
     <Content Include="Dependencies\McTools.Xrm.Connection.dll" />
     <Content Include="Dependencies\McTools.Xrm.Connection.WinForms.dll" />
     <Content Include="Dependencies\XrmToolBox.exe" />

@@ -24,6 +24,7 @@ using OfficeOpenXml.Table;
 using Tanguy.WinForm.Utilities.DelegatesHelpers;
 using XrmToolBox;
 using XrmToolBox.Attributes;
+using Cinteros.Xrm.FetchXmlBuilder;
 
 [assembly: BackgroundColor("")]
 [assembly: PrimaryFontColor("")]
@@ -32,9 +33,11 @@ using XrmToolBox.Attributes;
 [assembly: BigImageBase64("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")]
 namespace Ryr.ExcelExport
 {
-    public partial class MainForm : PluginBase
+    public partial class MainForm : PluginBase, IMessageBusHost
     {
         private List<EntityMetadata> entitiesCache;
+        private string fetchXml;
+
         private Dictionary<string, string>  optionsetCache = new Dictionary<string, string>();
         public MainForm()
         {
@@ -48,11 +51,13 @@ namespace Ryr.ExcelExport
 
         private void LoadEntities()
         {
+            fetchXml = string.Empty;
             lvEntities.Items.Clear();
             gbEntities.Enabled = false;
             tsbLoadEntities.Enabled = false;
             tsbRefresh.Enabled = false;
             tsbExportExcel.Enabled = false;
+            tsbEditInFxb.Enabled = false;
             lvViews.Items.Clear();
             txtFetchXml.Text = "";
 
@@ -99,8 +104,8 @@ namespace Ryr.ExcelExport
 
                 // Reinit other controls
                 lvViews.Items.Clear();
-                txtFetchXml.Text = "";
-
+                txtFetchXml.Text = string.Empty;
+                fetchXml = string.Empty; 
                 Cursor = Cursors.WaitCursor;
 
                 // Launch treatment
@@ -228,14 +233,22 @@ namespace Ryr.ExcelExport
             var view = (Entity)item.Tag;
 
             txtFetchXml.Text = XElement.Parse(view["fetchxml"].ToString()).ToString();
+            fetchXml = txtFetchXml.Text;
+            FormatXML(true);
             tsbExportExcel.Enabled = true;
+            tsbEditInFxb.Enabled = true;
         }
 
         private void tsbExportExcel_Click(object sender, EventArgs e)
         {
+            RequestFileDetails();
+        }
+
+        private void RequestFileDetails()
+        {
             var dialog = new SaveFileDialog
             {
-                Filter = "Excel XML Spreadsheet (*.xml)|*.xml",
+                Filter = "Excel  Workbook(*.xlsx)|*.xlsx",
                 FileName = string.Format("{0}-{1}.xlsx",
                     lvEntities.SelectedItems[0].SubItems[0].Text,
                     DateTime.Today.ToString("yyyyMMdd"))
@@ -254,18 +267,16 @@ namespace Ryr.ExcelExport
                     var outputFile = new ExcelPackage();
                     var ws = outputFile.Workbook.Worksheets.Add("Result");
 
-                    if (lvViews.SelectedItems.Count == 0)
+                    if (lvViews.SelectedItems.Count == 0 || fetchXml == string.Empty)
+                    {
                         return;
+                    }
 
-                    ListViewItem item = lvViews.SelectedItems[0];
-                    var view = (Entity)item.Tag;
-
-                    var fetchXml = view["fetchxml"].ToString();
                     var attributes = XElement.Parse(fetchXml)
                         .Descendants("attribute")
                         .Select(x => x.Attribute("name").Value).ToList();
 
-                    var fetchToQuery = new FetchXmlToQueryExpressionRequest { FetchXml = string.Format(txtFetchXml.Text, 1) };
+                    var fetchToQuery = new FetchXmlToQueryExpressionRequest { FetchXml = string.Format(fetchXml, 1) };
                     var retrieveQuery = ((FetchXmlToQueryExpressionResponse)Service.Execute(fetchToQuery)).Query;
                     retrieveQuery.PageInfo = new PagingInfo { PageNumber = 1 };
 
@@ -458,5 +469,52 @@ namespace Ryr.ExcelExport
         {
             ExecuteMethod(LoadEntities);
         }
+
+        private void tsbEditInFxb_Click(object sender, EventArgs e)
+        {
+            if (lvViews.SelectedItems.Count == 0 || fetchXml == string.Empty)
+            {
+                MessageBox.Show("No views selected.", "Error");
+                return;
+            }
+
+            var messageBusEventArgs = new MessageBusEventArgs("FetchXML Builder");
+            var fXBMessageBusArgument = new FXBMessageBusArgument(FXBMessageBusRequest.FetchXML)
+            {
+                FetchXML = fetchXml
+            };
+            messageBusEventArgs.TargetArgument = fXBMessageBusArgument;
+            OnOutgoingMessage(this, messageBusEventArgs);
+        }
+
+        public void OnIncomingMessage(MessageBusEventArgs message)
+        {
+
+            if (message.SourcePlugin == "FetchXML Builder" &&
+                        message.TargetArgument is FXBMessageBusArgument)
+            {
+                var fxbArg = (FXBMessageBusArgument)message.TargetArgument;
+                txtFetchXml.Text = fxbArg.FetchXML;
+                FormatXML(true);
+                fetchXml = fxbArg.FetchXML;
+            }
+        }
+
+        private void FormatXML(bool silent)
+        {
+            try
+            {
+                txtFetchXml.Process(true);
+            }
+            catch (Exception ex)
+            {
+                if (!silent)
+                {
+                    MessageBox.Show(ex.Message, "XML Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        public event EventHandler<MessageBusEventArgs> OnOutgoingMessage;
     }
 }
