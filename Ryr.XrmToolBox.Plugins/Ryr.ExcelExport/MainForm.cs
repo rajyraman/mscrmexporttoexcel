@@ -345,7 +345,8 @@ namespace Ryr.ExcelExport
             else
             if (attributeValue is OptionSetValue || attributeValue is bool)
             {
-                var cacheKey = string.Format("{0}:{1}", attributeName, entityName);
+                var optionSetValue = ((OptionSetValue)attributeValue).Value;
+                var cacheKey = string.Format("{0}:{1}:{2}", attributeName, entityName, optionSetValue);
                 if (optionsetCache.ContainsKey(cacheKey))
                 {
                     attributeUnwrappedValue = optionsetCache[cacheKey];
@@ -358,7 +359,7 @@ namespace Ryr.ExcelExport
                     }
                     else
                     {
-                        attributeUnwrappedValue = RetrieveOptionsetText(((OptionSetValue)attributeValue).Value, attributeName, entityName);
+                        attributeUnwrappedValue = RetrieveOptionsetText(optionSetValue, attributeName, entityName);
                     }
                     optionsetCache.Add(cacheKey, attributeUnwrappedValue.ToString());
                 }
