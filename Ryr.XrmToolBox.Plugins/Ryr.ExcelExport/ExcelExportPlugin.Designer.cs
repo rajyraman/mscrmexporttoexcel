@@ -1,6 +1,6 @@
 ﻿namespace Ryr.ExcelExport
 {
-    partial class MainForm
+    partial class ExcelExportPlugin
     {
         /// <summary>
         /// Required designer variable.
@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(ExcelExportPlugin));
             CSRichTextBoxSyntaxHighlighting.XMLViewerSettings xmlViewerSettings1 = new CSRichTextBoxSyntaxHighlighting.XMLViewerSettings();
             this.toolStripMain = new System.Windows.Forms.ToolStrip();
             this.tsbClose = new System.Windows.Forms.ToolStripButton();
@@ -66,9 +66,9 @@
             this.groupBox2.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.SuspendLayout();
-            // 
+            //
             // toolStripMain
-            // 
+            //
             this.toolStripMain.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.tsbClose,
             this.toolStripSeparator1,
@@ -86,9 +86,9 @@
             this.toolStripMain.Size = new System.Drawing.Size(1282, 32);
             this.toolStripMain.TabIndex = 0;
             this.toolStripMain.Text = "toolStrip1";
-            // 
+            //
             // tsbClose
-            // 
+            //
             this.tsbClose.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
             this.tsbClose.Image = ((System.Drawing.Image)(resources.GetObject("tsbClose.Image")));
             this.tsbClose.ImageTransparentColor = System.Drawing.Color.Magenta;
@@ -96,28 +96,28 @@
             this.tsbClose.Size = new System.Drawing.Size(23, 29);
             this.tsbClose.Text = "Close";
             this.tsbClose.Click += new System.EventHandler(this.tsbClose_Click);
-            // 
+            //
             // toolStripSeparator1
-            // 
+            //
             this.toolStripSeparator1.Name = "toolStripSeparator1";
             this.toolStripSeparator1.Size = new System.Drawing.Size(6, 32);
-            // 
+            //
             // tsbLoadEntities
-            // 
+            //
             this.tsbLoadEntities.Image = ((System.Drawing.Image)(resources.GetObject("tsbLoadEntities.Image")));
             this.tsbLoadEntities.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.tsbLoadEntities.Name = "tsbLoadEntities";
             this.tsbLoadEntities.Size = new System.Drawing.Size(132, 29);
             this.tsbLoadEntities.Text = "Load Entities";
             this.tsbLoadEntities.Click += new System.EventHandler(this.tsbLoadEntities_Click);
-            // 
+            //
             // toolStripSeparator2
-            // 
+            //
             this.toolStripSeparator2.Name = "toolStripSeparator2";
             this.toolStripSeparator2.Size = new System.Drawing.Size(6, 32);
-            // 
+            //
             // tsbRefresh
-            // 
+            //
             this.tsbRefresh.Enabled = false;
             this.tsbRefresh.Image = ((System.Drawing.Image)(resources.GetObject("tsbRefresh.Image")));
             this.tsbRefresh.ImageTransparentColor = System.Drawing.Color.Magenta;
@@ -125,14 +125,14 @@
             this.tsbRefresh.Size = new System.Drawing.Size(91, 29);
             this.tsbRefresh.Text = "Refresh";
             this.tsbRefresh.Click += new System.EventHandler(this.tsbRefresh_Click);
-            // 
+            //
             // toolStripSeparator3
-            // 
+            //
             this.toolStripSeparator3.Name = "toolStripSeparator3";
             this.toolStripSeparator3.Size = new System.Drawing.Size(6, 32);
-            // 
+            //
             // tsbExportExcel
-            // 
+            //
             this.tsbExportExcel.Enabled = false;
             this.tsbExportExcel.Image = ((System.Drawing.Image)(resources.GetObject("tsbExportExcel.Image")));
             this.tsbExportExcel.ImageTransparentColor = System.Drawing.Color.Magenta;
@@ -140,14 +140,14 @@
             this.tsbExportExcel.Size = new System.Drawing.Size(148, 29);
             this.tsbExportExcel.Text = "Export to Excel";
             this.tsbExportExcel.Click += new System.EventHandler(this.tsbExportExcel_Click);
-            // 
+            //
             // toolStripSeparator4
-            // 
+            //
             this.toolStripSeparator4.Name = "toolStripSeparator4";
             this.toolStripSeparator4.Size = new System.Drawing.Size(6, 32);
-            // 
+            //
             // tsbEditInFxb
-            // 
+            //
             this.tsbEditInFxb.Enabled = false;
             this.tsbEditInFxb.Image = ((System.Drawing.Image)(resources.GetObject("tsbEditInFxb.Image")));
             this.tsbEditInFxb.ImageTransparentColor = System.Drawing.Color.Magenta;
@@ -155,33 +155,33 @@
             this.tsbEditInFxb.Size = new System.Drawing.Size(194, 29);
             this.tsbEditInFxb.Text = "Edit FetchXml in FXB";
             this.tsbEditInFxb.Click += new System.EventHandler(this.tsbEditInFxb_Click);
-            // 
+            //
             // toolStripSeparator5
-            // 
+            //
             this.toolStripSeparator5.Name = "toolStripSeparator5";
             this.toolStripSeparator5.Size = new System.Drawing.Size(6, 32);
-            // 
+            //
             // splitContainer1
-            // 
+            //
             this.splitContainer1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.splitContainer1.Location = new System.Drawing.Point(0, 32);
             this.splitContainer1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.splitContainer1.Name = "splitContainer1";
-            // 
+            //
             // splitContainer1.Panel1
-            // 
+            //
             this.splitContainer1.Panel1.Controls.Add(this.gbEntities);
-            // 
+            //
             // splitContainer1.Panel2
-            // 
+            //
             this.splitContainer1.Panel2.Controls.Add(this.splitContainer2);
             this.splitContainer1.Size = new System.Drawing.Size(1282, 750);
             this.splitContainer1.SplitterDistance = 427;
             this.splitContainer1.SplitterWidth = 6;
             this.splitContainer1.TabIndex = 1;
-            // 
+            //
             // gbEntities
-            // 
+            //
             this.gbEntities.Controls.Add(this.lvEntities);
             this.gbEntities.Dock = System.Windows.Forms.DockStyle.Fill;
             this.gbEntities.Location = new System.Drawing.Point(0, 0);
@@ -192,9 +192,9 @@
             this.gbEntities.TabIndex = 0;
             this.gbEntities.TabStop = false;
             this.gbEntities.Text = "Entities";
-            // 
+            //
             // lvEntities
-            // 
+            //
             this.lvEntities.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.columnHeader1,
             this.columnHeader2});
@@ -212,39 +212,39 @@
             this.lvEntities.View = System.Windows.Forms.View.Details;
             this.lvEntities.ColumnClick += new System.Windows.Forms.ColumnClickEventHandler(this.lvEntities_ColumnClick);
             this.lvEntities.SelectedIndexChanged += new System.EventHandler(this.lvEntities_SelectedIndexChanged);
-            // 
+            //
             // columnHeader1
-            // 
+            //
             this.columnHeader1.Text = "Display Name";
             this.columnHeader1.Width = 134;
-            // 
+            //
             // columnHeader2
-            // 
+            //
             this.columnHeader2.Text = "Schema Name";
             this.columnHeader2.Width = 141;
-            // 
+            //
             // splitContainer2
-            // 
+            //
             this.splitContainer2.Dock = System.Windows.Forms.DockStyle.Fill;
             this.splitContainer2.Location = new System.Drawing.Point(0, 0);
             this.splitContainer2.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.splitContainer2.Name = "splitContainer2";
             this.splitContainer2.Orientation = System.Windows.Forms.Orientation.Horizontal;
-            // 
+            //
             // splitContainer2.Panel1
-            // 
+            //
             this.splitContainer2.Panel1.Controls.Add(this.groupBox2);
-            // 
+            //
             // splitContainer2.Panel2
-            // 
+            //
             this.splitContainer2.Panel2.Controls.Add(this.groupBox3);
             this.splitContainer2.Size = new System.Drawing.Size(849, 750);
             this.splitContainer2.SplitterDistance = 241;
             this.splitContainer2.SplitterWidth = 6;
             this.splitContainer2.TabIndex = 0;
-            // 
+            //
             // groupBox2
-            // 
+            //
             this.groupBox2.AutoSize = true;
             this.groupBox2.Controls.Add(this.lvViews);
             this.groupBox2.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -256,9 +256,9 @@
             this.groupBox2.TabIndex = 0;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Views";
-            // 
+            //
             // lvViews
-            // 
+            //
             this.lvViews.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.columnHeader3,
             this.columnHeader4});
@@ -276,19 +276,19 @@
             this.lvViews.View = System.Windows.Forms.View.Details;
             this.lvViews.ColumnClick += new System.Windows.Forms.ColumnClickEventHandler(this.lvViews_ColumnClick);
             this.lvViews.SelectedIndexChanged += new System.EventHandler(this.lvViews_SelectedIndexChanged);
-            // 
+            //
             // columnHeader3
-            // 
+            //
             this.columnHeader3.Text = "Name";
             this.columnHeader3.Width = 210;
-            // 
+            //
             // columnHeader4
-            // 
+            //
             this.columnHeader4.Text = "Description";
             this.columnHeader4.Width = 346;
-            // 
+            //
             // groupBox3
-            // 
+            //
             this.groupBox3.Controls.Add(this.txtFetchXml);
             this.groupBox3.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox3.Location = new System.Drawing.Point(0, 0);
@@ -299,9 +299,9 @@
             this.groupBox3.TabIndex = 0;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "FetchXml";
-            // 
+            //
             // txtFetchXml
-            // 
+            //
             this.txtFetchXml.Dock = System.Windows.Forms.DockStyle.Fill;
             this.txtFetchXml.Location = new System.Drawing.Point(4, 24);
             this.txtFetchXml.Name = "txtFetchXml";
@@ -314,9 +314,9 @@
             this.txtFetchXml.Size = new System.Drawing.Size(841, 474);
             this.txtFetchXml.TabIndex = 0;
             this.txtFetchXml.Text = "";
-            // 
+            //
             // MainForm
-            // 
+            //
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.Controls.Add(this.splitContainer1);

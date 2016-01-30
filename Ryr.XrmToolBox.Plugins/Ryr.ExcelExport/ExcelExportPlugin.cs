@@ -21,13 +21,13 @@ using XrmToolBox.Extensibility.Interfaces;
 
 namespace Ryr.ExcelExport
 {
-    public partial class MainForm : PluginControlBase, IMessageBusHost
+    public partial class ExcelExportPlugin : PluginControlBase, IMessageBusHost
     {
         private List<EntityMetadata> entitiesCache;
         private string fetchXml;
 
         private Dictionary<string, string>  optionsetCache = new Dictionary<string, string>();
-        public MainForm()
+        public ExcelExportPlugin()
         {
             InitializeComponent();
         }
@@ -48,26 +48,25 @@ namespace Ryr.ExcelExport
             tsbEditInFxb.Enabled = false;
             lvViews.Items.Clear();
             txtFetchXml.Text = "";
-
-            WorkAsync("Loading entities...",
-                e =>
+            WorkAsync(new WorkAsyncInfo("Loading entities...", e =>
+            {
+                e.Result = MetadataHelper.RetrieveEntities(Service);
+            })
+            {
+                PostWorkCallBack = completedargs =>
                 {
-                    e.Result = MetadataHelper.RetrieveEntities(Service);
-                },
-                e =>
-                {
-                    if (e.Error != null)
+                    if (completedargs.Error != null)
                     {
-                        string errorMessage = CrmExceptionHelper.GetErrorMessage(e.Error, true);
+                        string errorMessage = CrmExceptionHelper.GetErrorMessage(completedargs.Error, true);
                         CommonDelegates.DisplayMessageBox(ParentForm, errorMessage, "Error", MessageBoxButtons.OK,
                                                           MessageBoxIcon.Error);
                     }
                     else
                     {
-                        entitiesCache = (List<EntityMetadata>)e.Result;
+                        entitiesCache = (List<EntityMetadata>)completedargs.Result;
                         lvEntities.Items.Clear();
                         var list = new List<ListViewItem>();
-                        foreach (EntityMetadata emd in (List<EntityMetadata>)e.Result)
+                        foreach (EntityMetadata emd in (List<EntityMetadata>)completedargs.Result)
                         {
                             var item = new ListViewItem { Text = emd.DisplayName.UserLocalizedLabel.Label, Tag = emd.LogicalName };
                             item.SubItems.Add(emd.LogicalName);
@@ -81,7 +80,8 @@ namespace Ryr.ExcelExport
                         tsbLoadEntities.Enabled = true;
                         tsbRefresh.Enabled = true;
                     }
-                });
+                }
+            });
         }
 
         private void lvEntities_SelectedIndexChanged(object sender, EventArgs e)
@@ -93,7 +93,7 @@ namespace Ryr.ExcelExport
                 // Reinit other controls
                 lvViews.Items.Clear();
                 txtFetchXml.Text = string.Empty;
-                fetchXml = string.Empty; 
+                fetchXml = string.Empty;
                 Cursor = Cursors.WaitCursor;
 
                 // Launch treatment
@@ -249,73 +249,76 @@ namespace Ryr.ExcelExport
 
         private void ExportCurrentViewToExcel(string fileName)
         {
-            WorkAsync("Retrieving records..", 
-                (w, e) =>
+            WorkAsync(new WorkAsyncInfo("Retrieving records..", (w, e) =>
+            {
+                var outputFile = new ExcelPackage();
+                var ws = outputFile.Workbook.Worksheets.Add("Result");
+
+                if (lvViews.SelectedItems.Count == 0 || fetchXml == string.Empty)
                 {
-                    var outputFile = new ExcelPackage();
-                    var ws = outputFile.Workbook.Worksheets.Add("Result");
+                    return;
+                }
 
-                    if (lvViews.SelectedItems.Count == 0 || fetchXml == string.Empty)
-                    {
-                        return;
-                    }
+                var attributes = XElement.Parse(fetchXml)
+                    .Descendants("attribute")
+                    .Select(x => x.Attribute("name").Value).ToList();
 
-                    var attributes = XElement.Parse(fetchXml)
-                        .Descendants("attribute")
-                        .Select(x => x.Attribute("name").Value).ToList();
+                var fetchToQuery = new FetchXmlToQueryExpressionRequest {FetchXml = string.Format(fetchXml, 1)};
+                var retrieveQuery = ((FetchXmlToQueryExpressionResponse) Service.Execute(fetchToQuery)).Query;
+                retrieveQuery.PageInfo = new PagingInfo {PageNumber = 1};
 
-                    var fetchToQuery = new FetchXmlToQueryExpressionRequest { FetchXml = string.Format(fetchXml, 1) };
-                    var retrieveQuery = ((FetchXmlToQueryExpressionResponse)Service.Execute(fetchToQuery)).Query;
-                    retrieveQuery.PageInfo = new PagingInfo { PageNumber = 1 };
+                var rowNumber = 1;
+                var columnNumber = 1;
+                EntityCollection results;
+                var recordCount = 0;
+                var pageNumber = 0;
 
-                    var rowNumber = 1;
-                    var columnNumber = 1;
-                    EntityCollection results;
-                    var recordCount = 0;
-                    var pageNumber = 0;
-
-                    foreach (var attribute in attributes)
-                    {
-                        var attributeResponse =
-                            (RetrieveAttributeResponse)Service.Execute(new RetrieveAttributeRequest
-                            {
-                                LogicalName = attribute,
-                                EntityLogicalName = retrieveQuery.EntityName
-                            });
-                        ws.Cells[rowNumber, columnNumber].Value = attributeResponse.AttributeMetadata.DisplayName.UserLocalizedLabel.Label;
-                        columnNumber++;
-                    }
-                    rowNumber++;
-                    do
-                    {
-                        results = Service.RetrieveMultiple(retrieveQuery);
-                        w.ReportProgress(0,string.Format("Processing Page {0}...", ++pageNumber));
-
-                        columnNumber = 1;
-                        foreach (var result in results.Entities)
+                foreach (var attribute in attributes)
+                {
+                    var attributeResponse =
+                        (RetrieveAttributeResponse) Service.Execute(new RetrieveAttributeRequest
                         {
-                            foreach (var attribute in attributes)
-                            {
-                                ws.Cells[rowNumber, columnNumber].Value = result.Contains(attribute) ?
-                                    UnwrapAttribute(attribute, retrieveQuery.EntityName, result[attribute]) : string.Empty;
-                                columnNumber++;
-                            }
-                            columnNumber = 1;
-                            rowNumber++;
+                            LogicalName = attribute,
+                            EntityLogicalName = retrieveQuery.EntityName
+                        });
+                    ws.Cells[rowNumber, columnNumber].Value =
+                        attributeResponse.AttributeMetadata.DisplayName.UserLocalizedLabel.Label;
+                    columnNumber++;
+                }
+                rowNumber++;
+                do
+                {
+                    results = Service.RetrieveMultiple(retrieveQuery);
+                    w.ReportProgress(0, string.Format("Processing Page {0}...", ++pageNumber));
+
+                    columnNumber = 1;
+                    foreach (var result in results.Entities)
+                    {
+                        foreach (var attribute in attributes)
+                        {
+                            ws.Cells[rowNumber, columnNumber].Value = result.Contains(attribute)
+                                ? UnwrapAttribute(attribute, retrieveQuery.EntityName, result[attribute])
+                                : string.Empty;
+                            columnNumber++;
                         }
-                        recordCount += results.Entities.Count;
-                        retrieveQuery.PageInfo.PageNumber++;
-                        retrieveQuery.PageInfo.PagingCookie = results.PagingCookie;
-                    } while (results.MoreRecords);
-                    ws.Cells[ws.Dimension.Address].AutoFitColumns();
+                        columnNumber = 1;
+                        rowNumber++;
+                    }
+                    recordCount += results.Entities.Count;
+                    retrieveQuery.PageInfo.PageNumber++;
+                    retrieveQuery.PageInfo.PagingCookie = results.PagingCookie;
+                } while (results.MoreRecords);
+                ws.Cells[ws.Dimension.Address].AutoFitColumns();
 
-                    outputFile.File = new FileInfo(fileName);
-                    outputFile.Save();
-                    e.Result = recordCount;
+                outputFile.File = new FileInfo(fileName);
+                outputFile.Save();
+                e.Result = recordCount;
 
-                },
-                e => MessageBox.Show(string.Format("{0} records exported", e.Result)),
-                e => SetWorkingMessage(e.UserState.ToString()));
+            })
+            {
+                PostWorkCallBack = (c) => MessageBox.Show(string.Format("{0} records exported", c.Result)),
+                ProgressChanged = (c) => SetWorkingMessage(c.UserState.ToString())
+            });
         }
 
         private object UnwrapAttribute(string attributeName, string entityName, object attributeValue)
@@ -365,7 +368,7 @@ namespace Ryr.ExcelExport
             else
             if (attributeValue is DateTime)
             {
-                attributeUnwrappedValue = ((DateTime)attributeValue).ToString("s");
+                attributeUnwrappedValue = ((DateTime)attributeValue).ToLocalTime().ToString("s");
             }
             else
             if (attributeValue is AliasedValue)
