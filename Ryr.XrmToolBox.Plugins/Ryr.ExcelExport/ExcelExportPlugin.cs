@@ -258,15 +258,29 @@ namespace Ryr.ExcelExport
                 {
                     return;
                 }
-
-                var attributes = XElement.Parse(fetchXml)
+                var fetchElements = XElement.Parse(fetchXml);
+                foreach (var linkElement in fetchElements.Descendants("link-entity"))
+                {
+                    if (linkElement.Attribute("alias") == null)
+                    {
+                        linkElement.SetAttributeValue("alias", "e" + string.Join("", Guid.NewGuid().ToString().Split('-')));
+                    }
+                }
+                
+                var attributes = fetchElements
                     .Descendants("attribute")
-                    .Select(x => x.Attribute("name").Value).ToList();
+                    .Select(x => new
+                    {
+                        AttributeName = x.Attribute("name").Value, 
+                        EntityName = x.Parent.Attribute("name").Value,
+                        Alias = x.Parent.Attribute("alias") != null ? x.Parent.Attribute("alias").Value : string.Empty,
+                    }).ToList();
 
-                var fetchToQuery = new FetchXmlToQueryExpressionRequest {FetchXml = string.Format(fetchXml, 1)};
+                var fetchToQuery = new FetchXmlToQueryExpressionRequest { FetchXml = fetchElements.ToString() };
                 var retrieveQuery = ((FetchXmlToQueryExpressionResponse) Service.Execute(fetchToQuery)).Query;
-                retrieveQuery.PageInfo = new PagingInfo {PageNumber = 1};
-
+                retrieveQuery.PageInfo = new PagingInfo { PageNumber = 1 };
+                retrieveQuery.PageInfo.Count = fetchElements.Attribute("count") != null ? 
+                                                Convert.ToInt32(fetchElements.Attribute("count").Value) : 500;
                 var rowNumber = 1;
                 var columnNumber = 1;
                 EntityCollection results;
@@ -278,8 +292,8 @@ namespace Ryr.ExcelExport
                     var attributeResponse =
                         (RetrieveAttributeResponse) Service.Execute(new RetrieveAttributeRequest
                         {
-                            LogicalName = attribute,
-                            EntityLogicalName = retrieveQuery.EntityName
+                            LogicalName = attribute.AttributeName,
+                            EntityLogicalName = attribute.EntityName
                         });
                     ws.Cells[rowNumber, columnNumber].Value =
                         attributeResponse.AttributeMetadata.DisplayName.UserLocalizedLabel.Label;
@@ -289,15 +303,18 @@ namespace Ryr.ExcelExport
                 do
                 {
                     results = Service.RetrieveMultiple(retrieveQuery);
-                    w.ReportProgress(0, string.Format("Processing Page {0}...", ++pageNumber));
+                    w.ReportProgress(0, string.Format("Processing Page {0}, {1} records...", ++pageNumber, retrieveQuery.PageInfo.Count));
 
                     columnNumber = 1;
                     foreach (var result in results.Entities)
                     {
                         foreach (var attribute in attributes)
                         {
-                            ws.Cells[rowNumber, columnNumber].Value = result.Contains(attribute)
-                                ? UnwrapAttribute(attribute, retrieveQuery.EntityName, result[attribute])
+                            var attributeName = string.IsNullOrEmpty(attribute.Alias)
+                                ? attribute.AttributeName
+                                : string.Format("{0}.{1}", attribute.Alias, attribute.AttributeName);
+                            ws.Cells[rowNumber, columnNumber].Value = result.Contains(attributeName)
+                                ? UnwrapAttribute(attribute.AttributeName, attribute.EntityName, result[attributeName])
                                 : string.Empty;
                             columnNumber++;
                         }
