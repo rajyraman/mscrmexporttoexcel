@@ -21,12 +21,12 @@ using XrmToolBox.Extensibility.Interfaces;
 
 namespace Ryr.ExcelExport
 {
-    public partial class ExcelExportPlugin : PluginControlBase, IMessageBusHost
+    public partial class ExcelExportPlugin : PluginControlBase, IMessageBusHost, IGitHubPlugin, IHelpPlugin
     {
         private List<EntityMetadata> entitiesCache;
         private string fetchXml;
 
-        private Dictionary<string, string>  optionsetCache = new Dictionary<string, string>();
+        private Dictionary<string, object> optionsetCache = new Dictionary<string, object>();
         public ExcelExportPlugin()
         {
             InitializeComponent();
@@ -278,9 +278,13 @@ namespace Ryr.ExcelExport
 
                 var fetchToQuery = new FetchXmlToQueryExpressionRequest { FetchXml = fetchElements.ToString() };
                 var retrieveQuery = ((FetchXmlToQueryExpressionResponse) Service.Execute(fetchToQuery)).Query;
-                retrieveQuery.PageInfo = new PagingInfo { PageNumber = 1 };
-                retrieveQuery.PageInfo.Count = fetchElements.Attribute("count") != null ? 
-                                                Convert.ToInt32(fetchElements.Attribute("count").Value) : 500;
+                retrieveQuery.PageInfo = new PagingInfo
+                {
+                    PageNumber = 1,
+                    Count = fetchElements.Attribute("count") != null
+                        ? Convert.ToInt32(fetchElements.Attribute("count").Value)
+                        : 500
+                };
                 var rowNumber = 1;
                 var columnNumber = 1;
                 EntityCollection results;
@@ -289,21 +293,34 @@ namespace Ryr.ExcelExport
 
                 foreach (var attribute in attributes)
                 {
+                    w.ReportProgress(0, string.Format("Retrieving metadata for {0}...", attribute.AttributeName));
                     var attributeResponse =
                         (RetrieveAttributeResponse) Service.Execute(new RetrieveAttributeRequest
                         {
                             LogicalName = attribute.AttributeName,
                             EntityLogicalName = attribute.EntityName
                         });
+                    if (attributeResponse.AttributeMetadata.DisplayName.UserLocalizedLabel == null && 
+                        attributeResponse.AttributeMetadata.AttributeOf != null)
+                    {
+                        w.ReportProgress(0, string.Format("Retrieving metadata for {0}...", attributeResponse.AttributeMetadata.AttributeOf));
+                        attributeResponse =
+                            (RetrieveAttributeResponse)Service.Execute(new RetrieveAttributeRequest
+                            {
+                                LogicalName = attributeResponse.AttributeMetadata.AttributeOf,
+                                EntityLogicalName = attribute.EntityName
+                            });
+                    }
                     ws.Cells[rowNumber, columnNumber].Value =
-                        attributeResponse.AttributeMetadata.DisplayName.UserLocalizedLabel.Label;
+                        attributeResponse.AttributeMetadata.DisplayName.UserLocalizedLabel != null ?
+                        attributeResponse.AttributeMetadata.DisplayName.UserLocalizedLabel.Label : attributeResponse.AttributeMetadata.LogicalName;
                     columnNumber++;
                 }
                 rowNumber++;
                 do
                 {
                     results = Service.RetrieveMultiple(retrieveQuery);
-                    w.ReportProgress(0, string.Format("Processing Page {0}, {1} records...", ++pageNumber, retrieveQuery.PageInfo.Count));
+                    w.ReportProgress(0, string.Format("Processing Page {0}, {1} records...", ++pageNumber, results.Entities.Count));
 
                     columnNumber = 1;
                     foreach (var result in results.Entities)
@@ -341,7 +358,7 @@ namespace Ryr.ExcelExport
         private object UnwrapAttribute(string attributeName, string entityName, object attributeValue)
         {
             object attributeUnwrappedValue;
-
+            var cacheKey = string.Empty;
             if (attributeValue == null)
             {
                 return string.Empty;
@@ -351,25 +368,33 @@ namespace Ryr.ExcelExport
                 attributeUnwrappedValue = ((EntityReference)attributeValue).Name;
             }
             else
-            if (attributeValue is OptionSetValue || attributeValue is bool)
+            if (attributeValue is OptionSetValue)
             {
                 var optionSetValue = ((OptionSetValue)attributeValue).Value;
-                var cacheKey = string.Format("{0}:{1}:{2}", attributeName, entityName, optionSetValue);
+                cacheKey = string.Format("{0}:{1}:{2}", attributeName, entityName, optionSetValue);
                 if (optionsetCache.ContainsKey(cacheKey))
                 {
                     attributeUnwrappedValue = optionsetCache[cacheKey];
                 }
                 else
                 {
-                    if (attributeValue is bool)
-                    {
-                        attributeUnwrappedValue = RetrieveBooleanLabel((bool)attributeValue, attributeName, entityName);
-                    }
-                    else
-                    {
-                        attributeUnwrappedValue = RetrieveOptionsetText(optionSetValue, attributeName, entityName);
-                    }
-                    optionsetCache.Add(cacheKey, attributeUnwrappedValue.ToString());
+                    attributeUnwrappedValue = RetrieveOptionsetText(optionSetValue, attributeName, entityName);
+                    optionsetCache[cacheKey] = attributeUnwrappedValue;
+                }
+            }
+            else
+            if (attributeValue is bool)
+            {
+                var boolValue = ((bool)attributeValue);
+                cacheKey = string.Format("{0}:{1}:{2}", attributeName, entityName, boolValue);
+                if (optionsetCache.ContainsKey(cacheKey))
+                {
+                    attributeUnwrappedValue = optionsetCache[cacheKey];
+                }
+                else
+                {
+                    attributeUnwrappedValue = RetrieveBooleanLabel((bool) attributeValue, attributeName, entityName);
+                    optionsetCache[cacheKey] = attributeUnwrappedValue;
                 }
             }
             else
@@ -525,5 +550,26 @@ namespace Ryr.ExcelExport
         }
 
         public event EventHandler<MessageBusEventArgs> OnOutgoingMessage;
+
+        public string RepositoryName
+        {
+            get { return "mscrmexporttoexcel"; }
+        }
+
+        public string UserName
+        {
+            get
+            {
+                return "rajyraman";
+            }
+        }
+
+        public string HelpUrl
+        {
+            get
+            {
+                return "https://github.com/rajyraman/mscrmexporttoexcel/blob/master/README.md";
+            }
+        }
     }
 }
