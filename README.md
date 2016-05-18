@@ -6,5 +6,8 @@ Even though you can export records from Dynamics CRM, there is a record count li
 
 This tool can be used to overcome that limitation, as it just pages through RetrieveMultiple till there are no more records to retrieve.
 
+#Install Instructions
+Download the most recent version of XrmToolBox. Click on the "Plugin Store" button in the menu and install this tool from the store.
+
 # Credits
 Tanguy for View Layout Replicator - Most of the UI and event handling code is from this tool.
