@@ -14,6 +14,7 @@ using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Query;
 using MsCrmTools.ViewLayoutReplicator.Helpers;
 using OfficeOpenXml;
+using OfficeOpenXml.FormulaParsing.Excel.Functions.RefAndLookup;
 using Tanguy.WinForm.Utilities.DelegatesHelpers;
 using Cinteros.Xrm.FetchXmlBuilder;
 using XrmToolBox.Extensibility;
@@ -23,10 +24,11 @@ namespace Ryr.ExcelExport
 {
     public partial class ExcelExportPlugin : PluginControlBase, IMessageBusHost, IGitHubPlugin, IHelpPlugin
     {
+        private static int fileNumber = 0;
         private List<EntityMetadata> entitiesCache;
         private string fetchXml;
-
         private Dictionary<string, object> optionsetCache = new Dictionary<string, object>();
+        
         public ExcelExportPlugin()
         {
             InitializeComponent();
@@ -74,7 +76,7 @@ namespace Ryr.ExcelExport
                         }
 
                         lvEntities.Items.AddRange(list.ToArray());
-
+                        lvEntities.AutoResizeColumns(ColumnHeaderAutoResizeStyle.ColumnContent);
                         gbEntities.Enabled = true;
                         gbEntities.Enabled = true;
                         tsbLoadEntities.Enabled = true;
@@ -192,6 +194,7 @@ namespace Ryr.ExcelExport
                     }
                 }
             }
+            lvViews.AutoResizeColumns(ColumnHeaderAutoResizeStyle.ColumnContent);
         }
 
         private void BwFillViewsRunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
@@ -246,14 +249,42 @@ namespace Ryr.ExcelExport
                 ExecuteMethod(ExportCurrentViewToExcel, dialog.FileName);
             }
         }
+        
+        private void WriteToExcel(List<string> headers, List<List<string>> rows, string fileName)
+        {
+            using (var outputFile = new ExcelPackage())
+            {
+                var ws = outputFile.Workbook.Worksheets.Add("Result");
+                
+                //write headers first
+                for (var columnNumber = 0; columnNumber < headers.Count; columnNumber++)
+                {
+                    ws.Cells[1, columnNumber+1].Value = headers[columnNumber];
+                }
 
+                //actual data rows
+                for (var rowNumber = 0; rowNumber < rows.Count; rowNumber++)
+                {
+                    for (var columnNumber = 0; columnNumber < headers.Count; columnNumber++)
+                    {
+                        ws.Cells[rowNumber + 2, columnNumber + 1].Value = rows[rowNumber][columnNumber];
+                    }
+                }
+
+                if (!rows.Any()) return;
+
+                outputFile.File = fileNumber > 0 ? 
+                    new FileInfo(fileName.Replace(".xlsx", string.Format("_{0}.xlsx", fileNumber))) : 
+                    new FileInfo(fileName);
+                fileNumber++;
+                outputFile.Save();
+            }
+        }
+        
         private void ExportCurrentViewToExcel(string fileName)
         {
             WorkAsync(new WorkAsyncInfo("Retrieving records..", (w, e) =>
             {
-                var outputFile = new ExcelPackage();
-                var ws = outputFile.Workbook.Worksheets.Add("Result");
-
                 if (lvViews.SelectedItems.Count == 0 || fetchXml == string.Empty)
                 {
                     return;
@@ -267,92 +298,108 @@ namespace Ryr.ExcelExport
                     }
                 }
                 
-                var attributes = fetchElements
-                    .Descendants("attribute")
-                    .Select(x => new
-                    {
-                        AttributeName = x.Attribute("name").Value, 
-                        EntityName = x.Parent.Attribute("name").Value,
-                        Alias = x.Parent.Attribute("alias") != null ? x.Parent.Attribute("alias").Value : string.Empty,
-                    }).ToList();
-
                 var fetchToQuery = new FetchXmlToQueryExpressionRequest { FetchXml = fetchElements.ToString() };
                 var retrieveQuery = ((FetchXmlToQueryExpressionResponse) Service.Execute(fetchToQuery)).Query;
                 retrieveQuery.PageInfo = new PagingInfo
                 {
                     PageNumber = 1,
-                    Count = fetchElements.Attribute("count") != null
-                        ? Convert.ToInt32(fetchElements.Attribute("count").Value)
-                        : 500
+                    Count = (int)batchSize.Value
                 };
-                var rowNumber = 1;
-                var columnNumber = 1;
+                fileNumber = 0;
                 EntityCollection results;
-                var recordCount = 0;
+                var totalRecordCount = 0;
                 var pageNumber = 0;
+                var headers = new List<string>();
+                List<string> rowValues;
+                var rows = new List<List<string>>();
 
-                foreach (var attribute in attributes)
-                {
-                    w.ReportProgress(0, string.Format("Retrieving metadata for {0}...", attribute.AttributeName));
-                    var attributeResponse =
-                        (RetrieveAttributeResponse) Service.Execute(new RetrieveAttributeRequest
-                        {
-                            LogicalName = attribute.AttributeName,
-                            EntityLogicalName = attribute.EntityName
-                        });
-                    if (attributeResponse.AttributeMetadata.DisplayName.UserLocalizedLabel == null && 
-                        attributeResponse.AttributeMetadata.AttributeOf != null)
-                    {
-                        w.ReportProgress(0, string.Format("Retrieving metadata for {0}...", attributeResponse.AttributeMetadata.AttributeOf));
-                        attributeResponse =
-                            (RetrieveAttributeResponse)Service.Execute(new RetrieveAttributeRequest
-                            {
-                                LogicalName = attributeResponse.AttributeMetadata.AttributeOf,
-                                EntityLogicalName = attribute.EntityName
-                            });
-                    }
-                    ws.Cells[rowNumber, columnNumber].Value =
-                        attributeResponse.AttributeMetadata.DisplayName.UserLocalizedLabel != null ?
-                        attributeResponse.AttributeMetadata.DisplayName.UserLocalizedLabel.Label : attributeResponse.AttributeMetadata.LogicalName;
-                    columnNumber++;
-                }
-                rowNumber++;
+                var attributes = RetrieveAttributeMetadata(fetchElements, w, headers);
+
                 do
                 {
                     results = Service.RetrieveMultiple(retrieveQuery);
                     w.ReportProgress(0, string.Format("Processing Page {0}, {1} records...", ++pageNumber, results.Entities.Count));
 
-                    columnNumber = 1;
                     foreach (var result in results.Entities)
                     {
+                        rowValues = new List<string>();
                         foreach (var attribute in attributes)
                         {
                             var attributeName = string.IsNullOrEmpty(attribute.Alias)
                                 ? attribute.AttributeName
                                 : string.Format("{0}.{1}", attribute.Alias, attribute.AttributeName);
-                            ws.Cells[rowNumber, columnNumber].Value = result.Contains(attributeName)
+                            var attributeValue = result.Contains(attributeName)
                                 ? UnwrapAttribute(attribute.AttributeName, attribute.EntityName, result[attributeName])
+                                    .ToString()
                                 : string.Empty;
-                            columnNumber++;
+                            rowValues.Add(attributeValue);
                         }
-                        columnNumber = 1;
-                        rowNumber++;
+                        
+                        rows.Add(rowValues);
+
+                        if (rows.Count == maxRowsPerFile.Value)
+                        {
+                            WriteToExcel(headers, rows, fileName);
+                            rowValues.Clear();
+                            rows.Clear();
+                        }
                     }
-                    recordCount += results.Entities.Count;
+                    totalRecordCount += results.Entities.Count;
                     retrieveQuery.PageInfo.PageNumber++;
                     retrieveQuery.PageInfo.PagingCookie = results.PagingCookie;
                 } while (results.MoreRecords);
-                ws.Cells[ws.Dimension.Address].AutoFitColumns();
-
-                outputFile.File = new FileInfo(fileName);
-                outputFile.Save();
-                e.Result = recordCount;
+                
+                //Write any leftover rows
+                if (rows.Any())
+                {
+                    WriteToExcel(headers, rows, fileName);
+                }
+                e.Result = totalRecordCount;
 
             })
             {
                 PostWorkCallBack = (c) => MessageBox.Show(string.Format("{0} records exported", c.Result)),
                 ProgressChanged = (c) => SetWorkingMessage(c.UserState.ToString())
             });
+        }
+
+        private List<AttributeInfo> RetrieveAttributeMetadata(XElement fetchElements, BackgroundWorker w, List<string> headers)
+        {
+            var attributes = fetchElements
+                .Descendants("attribute")
+                .Select(x => new AttributeInfo
+                {
+                    AttributeName = x.Attribute("name").Value,
+                    EntityName = x.Parent.Attribute("name").Value,
+                    Alias = x.Parent.Attribute("alias") != null ? x.Parent.Attribute("alias").Value : string.Empty,
+                }).ToList();
+
+            foreach (var attribute in attributes)
+            {
+                w.ReportProgress(0, string.Format("Retrieving metadata for {0}...", attribute.AttributeName));
+                var attributeResponse =
+                    (RetrieveAttributeResponse) Service.Execute(new RetrieveAttributeRequest
+                    {
+                        LogicalName = attribute.AttributeName,
+                        EntityLogicalName = attribute.EntityName
+                    });
+                if (attributeResponse.AttributeMetadata.DisplayName.UserLocalizedLabel == null &&
+                    attributeResponse.AttributeMetadata.AttributeOf != null)
+                {
+                    w.ReportProgress(0,
+                        string.Format("Retrieving metadata for {0}...", attributeResponse.AttributeMetadata.AttributeOf));
+                    attributeResponse =
+                        (RetrieveAttributeResponse) Service.Execute(new RetrieveAttributeRequest
+                        {
+                            LogicalName = attributeResponse.AttributeMetadata.AttributeOf,
+                            EntityLogicalName = attribute.EntityName
+                        });
+                }
+                var headerValue = attributeResponse.AttributeMetadata.DisplayName.UserLocalizedLabel != null ?
+                    attributeResponse.AttributeMetadata.DisplayName.UserLocalizedLabel.Label : attributeResponse.AttributeMetadata.LogicalName;
+                headers.Add(headerValue);
+            }
+            return attributes;
         }
 
         private object UnwrapAttribute(string attributeName, string entityName, object attributeValue)
@@ -571,5 +618,12 @@ namespace Ryr.ExcelExport
                 return "https://github.com/rajyraman/mscrmexporttoexcel/blob/master/README.md";
             }
         }
+    }
+
+    internal class AttributeInfo
+    {
+        public string AttributeName { get; set; }
+        public string EntityName { get; set; }
+        public string Alias { get; set; }
     }
 }
