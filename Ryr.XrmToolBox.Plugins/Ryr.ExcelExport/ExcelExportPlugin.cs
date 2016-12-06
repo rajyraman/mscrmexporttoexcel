@@ -328,10 +328,17 @@ namespace Ryr.ExcelExport
                             var attributeName = string.IsNullOrEmpty(attribute.Alias)
                                 ? attribute.AttributeName
                                 : string.Format("{0}.{1}", attribute.Alias, attribute.AttributeName);
-                            var attributeValue = result.Contains(attributeName)
-                                ? UnwrapAttribute(attribute.AttributeName, attribute.EntityName, result[attributeName])
-                                    .ToString()
-                                : string.Empty;
+
+                            var attributeValue = string.Empty;
+                            if (result.Contains(attributeName))
+                            {
+                                var unWrappedAttributeValue = UnwrapAttribute(attribute.AttributeName, attribute.EntityName,
+                                    result[attributeName]);
+                                if (unWrappedAttributeValue != null)
+                                {
+                                    attributeValue = unWrappedAttributeValue.ToString();
+                                }
+                            }
                             rowValues.Add(attributeValue);
                         }
                         
