@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
@@ -14,9 +15,7 @@ using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Query;
 using MsCrmTools.ViewLayoutReplicator.Helpers;
 using OfficeOpenXml;
-using OfficeOpenXml.FormulaParsing.Excel.Functions.RefAndLookup;
 using Tanguy.WinForm.Utilities.DelegatesHelpers;
-using Cinteros.Xrm.FetchXmlBuilder;
 using XrmToolBox.Extensibility;
 using XrmToolBox.Extensibility.Interfaces;
 
@@ -240,9 +239,7 @@ namespace Ryr.ExcelExport
             var dialog = new SaveFileDialog
             {
                 Filter = "Excel  Workbook(*.xlsx)|*.xlsx",
-                FileName = string.Format("{0}-{1}.xlsx",
-                    lvEntities.SelectedItems[0].SubItems[0].Text,
-                    DateTime.Today.ToString("yyyyMMdd"))
+                FileName = $"{lvEntities.SelectedItems[0].SubItems[0].Text}-{DateTime.Today.ToString("yyyyMMdd")}.xlsx"
             };
             if (dialog.ShowDialog() == DialogResult.OK)
             {
@@ -274,7 +271,7 @@ namespace Ryr.ExcelExport
                 if (!rows.Any()) return;
 
                 outputFile.File = fileNumber > 0 ? 
-                    new FileInfo(fileName.Replace(".xlsx", string.Format("_{0}.xlsx", fileNumber))) : 
+                    new FileInfo(fileName.Replace(".xlsx", $"_{fileNumber}.xlsx")) : 
                     new FileInfo(fileName);
                 fileNumber++;
                 outputFile.Save();
@@ -285,11 +282,11 @@ namespace Ryr.ExcelExport
         {
             WorkAsync(new WorkAsyncInfo("Retrieving records..", (w, e) =>
             {
-                if (lvViews.SelectedItems.Count == 0 || fetchXml == string.Empty)
+                if (lvViews.SelectedItems.Count == 0 || txtFetchXml.Text == string.Empty)
                 {
                     return;
                 }
-                var fetchElements = XElement.Parse(fetchXml);
+                var fetchElements = XElement.Parse(txtFetchXml.Text);
                 foreach (var linkElement in fetchElements.Descendants("link-entity"))
                 {
                     if (linkElement.Attribute("alias") == null)
@@ -300,17 +297,18 @@ namespace Ryr.ExcelExport
                 
                 var fetchToQuery = new FetchXmlToQueryExpressionRequest { FetchXml = fetchElements.ToString() };
                 var retrieveQuery = ((FetchXmlToQueryExpressionResponse) Service.Execute(fetchToQuery)).Query;
+                var fetchXmlCount = Convert.ToInt32(fetchElements.Attribute("count")?.Value ?? "0");
+                var fetchXmlPageNumber = Convert.ToInt32(fetchElements.Attribute("page")?.Value ?? "1");
                 retrieveQuery.PageInfo = new PagingInfo
                 {
-                    PageNumber = 1,
-                    Count = (int)batchSize.Value
+                    PageNumber = fetchXmlPageNumber,
+                    Count = fetchXmlCount
                 };
                 fileNumber = 0;
                 EntityCollection results;
                 var totalRecordCount = 0;
                 var pageNumber = 0;
                 var headers = new List<string>();
-                List<string> rowValues;
                 var rows = new List<List<string>>();
 
                 var attributes = RetrieveAttributeMetadata(fetchElements, w, headers);
@@ -318,16 +316,16 @@ namespace Ryr.ExcelExport
                 do
                 {
                     results = Service.RetrieveMultiple(retrieveQuery);
-                    w.ReportProgress(0, string.Format("Processing Page {0}, {1} records...", ++pageNumber, results.Entities.Count));
+                    w.ReportProgress(0, $"Processing Page {++pageNumber}, {results.Entities.Count} records...");
 
                     foreach (var result in results.Entities)
                     {
-                        rowValues = new List<string>();
+                        var rowValues = new List<string>();
                         foreach (var attribute in attributes)
                         {
                             var attributeName = string.IsNullOrEmpty(attribute.Alias)
                                 ? attribute.AttributeName
-                                : string.Format("{0}.{1}", attribute.Alias, attribute.AttributeName);
+                                : $"{attribute.Alias}.{attribute.AttributeName}";
 
                             var attributeValue = string.Empty;
                             if (result.Contains(attributeName))
@@ -354,6 +352,8 @@ namespace Ryr.ExcelExport
                     totalRecordCount += results.Entities.Count;
                     retrieveQuery.PageInfo.PageNumber++;
                     retrieveQuery.PageInfo.PagingCookie = results.PagingCookie;
+
+                    if (fetchXmlCount > 0) break;
                 } while (results.MoreRecords);
                 
                 //Write any leftover rows
@@ -365,7 +365,7 @@ namespace Ryr.ExcelExport
 
             })
             {
-                PostWorkCallBack = (c) => MessageBox.Show(string.Format("{0} records exported", c.Result)),
+                PostWorkCallBack = (c) => MessageBox.Show($"{c.Result} records exported"),
                 ProgressChanged = (c) => SetWorkingMessage(c.UserState.ToString())
             });
         }
@@ -383,7 +383,7 @@ namespace Ryr.ExcelExport
 
             foreach (var attribute in attributes)
             {
-                w.ReportProgress(0, string.Format("Retrieving metadata for {0}...", attribute.AttributeName));
+                w.ReportProgress(0, $"Retrieving metadata for {attribute.AttributeName}...");
                 var attributeResponse =
                     (RetrieveAttributeResponse) Service.Execute(new RetrieveAttributeRequest
                     {
@@ -394,7 +394,7 @@ namespace Ryr.ExcelExport
                     attributeResponse.AttributeMetadata.AttributeOf != null)
                 {
                     w.ReportProgress(0,
-                        string.Format("Retrieving metadata for {0}...", attributeResponse.AttributeMetadata.AttributeOf));
+                        $"Retrieving metadata for {attributeResponse.AttributeMetadata.AttributeOf}...");
                     attributeResponse =
                         (RetrieveAttributeResponse) Service.Execute(new RetrieveAttributeRequest
                         {
@@ -411,71 +411,41 @@ namespace Ryr.ExcelExport
 
         private object UnwrapAttribute(string attributeName, string entityName, object attributeValue)
         {
-            object attributeUnwrappedValue;
             var cacheKey = string.Empty;
             if (attributeValue == null)
             {
                 return string.Empty;
             }
-            if (attributeValue is EntityReference)
+            switch (attributeValue)
             {
-                attributeUnwrappedValue = ((EntityReference)attributeValue).Name;
+                case EntityReference e:
+                    return e.Name;
+                case OptionSetValue o:
+                    var optionSetValue = o.Value;
+                    cacheKey = $"{attributeName}:{entityName}:{optionSetValue}";
+                    if (!optionsetCache.ContainsKey(cacheKey))
+                    {
+                        optionsetCache[cacheKey] = RetrieveOptionsetText(optionSetValue, attributeName, entityName);
+                    }
+                    return optionsetCache[cacheKey];
+                case bool b:
+                    cacheKey = $"{attributeName}:{entityName}:{b}";
+                    if (!optionsetCache.ContainsKey(cacheKey))
+                    {
+                        optionsetCache[cacheKey] = RetrieveBooleanLabel((bool)attributeValue, attributeName, entityName);
+                    }
+                    return optionsetCache[cacheKey];
+                case Money m:
+                    return m.Value;
+                case Guid g:
+                    return g.ToString("B");
+                case AliasedValue a:
+                    return UnwrapAttribute(attributeName, entityName, a.Value);
+                case DateTime d:
+                    return d.ToLocalTime().ToString(CultureInfo.CurrentCulture.DateTimeFormat);
+                default:
+                    return attributeValue;
             }
-            else
-            if (attributeValue is OptionSetValue)
-            {
-                var optionSetValue = ((OptionSetValue)attributeValue).Value;
-                cacheKey = string.Format("{0}:{1}:{2}", attributeName, entityName, optionSetValue);
-                if (optionsetCache.ContainsKey(cacheKey))
-                {
-                    attributeUnwrappedValue = optionsetCache[cacheKey];
-                }
-                else
-                {
-                    attributeUnwrappedValue = RetrieveOptionsetText(optionSetValue, attributeName, entityName);
-                    optionsetCache[cacheKey] = attributeUnwrappedValue;
-                }
-            }
-            else
-            if (attributeValue is bool)
-            {
-                var boolValue = ((bool)attributeValue);
-                cacheKey = string.Format("{0}:{1}:{2}", attributeName, entityName, boolValue);
-                if (optionsetCache.ContainsKey(cacheKey))
-                {
-                    attributeUnwrappedValue = optionsetCache[cacheKey];
-                }
-                else
-                {
-                    attributeUnwrappedValue = RetrieveBooleanLabel((bool) attributeValue, attributeName, entityName);
-                    optionsetCache[cacheKey] = attributeUnwrappedValue;
-                }
-            }
-            else
-            if (attributeValue is Money)
-            {
-                attributeUnwrappedValue = ((Money)attributeValue).Value;
-            }
-            else
-            if (attributeValue is Guid)
-            {
-                attributeUnwrappedValue = ((Guid)attributeValue).ToString("B");
-            }
-            else
-            if (attributeValue is DateTime)
-            {
-                attributeUnwrappedValue = ((DateTime)attributeValue).ToLocalTime().ToString("s");
-            }
-            else
-            if (attributeValue is AliasedValue)
-            {
-                attributeUnwrappedValue = UnwrapAttribute(attributeName, entityName, ((AliasedValue)attributeValue).Value);
-            }
-            else
-            {
-                attributeUnwrappedValue = attributeValue;
-            }
-            return attributeUnwrappedValue;
         }
 
         private string RetrieveBooleanLabel(bool optionsetValue, string attributeName, string entityName)
@@ -489,15 +459,9 @@ namespace Ryr.ExcelExport
             };
             var retrieveAttributeResponse = (RetrieveAttributeResponse)Service.Execute(retrieveAttributeRequest);
             var optionSets = retrieveAttributeResponse.AttributeMetadata;
-            OptionMetadata optionMetaData = null;
-            if (optionSets is BooleanAttributeMetadata)
+            if (optionSets is BooleanAttributeMetadata b)
             {
-                optionMetaData = optionsetValue
-                    ? ((BooleanAttributeMetadata)optionSets).OptionSet.TrueOption
-                    : ((BooleanAttributeMetadata)optionSets).OptionSet.FalseOption;
-            }
-            if (optionMetaData != null)
-            {
+                var optionMetaData = optionsetValue ? b.OptionSet.TrueOption : b.OptionSet.FalseOption;
                 optionsetText = optionMetaData.Label.UserLocalizedLabel.Label;
             }
             return optionsetText;
@@ -515,17 +479,9 @@ namespace Ryr.ExcelExport
             var retrieveAttributeResponse = (RetrieveAttributeResponse)Service.Execute(retrieveAttributeRequest);
             var optionSets = retrieveAttributeResponse.AttributeMetadata;
             OptionMetadata optionMetaData = null;
-            if (optionSets is PicklistAttributeMetadata)
+            if (optionSets is EnumAttributeMetadata p)
             {
-                optionMetaData = ((PicklistAttributeMetadata)optionSets).OptionSet.Options.FirstOrDefault(x => x.Value == optionsetValue);
-            }
-            else if (optionSets is StatusAttributeMetadata)
-            {
-                optionMetaData = ((StatusAttributeMetadata)optionSets).OptionSet.Options.FirstOrDefault(x => x.Value == optionsetValue);
-            }
-            else if (optionSets is StateAttributeMetadata)
-            {
-                optionMetaData = ((StateAttributeMetadata)optionSets).OptionSet.Options.FirstOrDefault(x => x.Value == optionsetValue);
+                optionMetaData = p.OptionSet.Options.FirstOrDefault(x => x.Value == optionsetValue);
             }
             if (optionMetaData != null)
             {
@@ -567,25 +523,16 @@ namespace Ryr.ExcelExport
             }
 
             var messageBusEventArgs = new MessageBusEventArgs("FetchXML Builder");
-            var fXBMessageBusArgument = new FXBMessageBusArgument(FXBMessageBusRequest.FetchXML)
-            {
-                FetchXML = fetchXml
-            };
-            messageBusEventArgs.TargetArgument = fXBMessageBusArgument;
+            messageBusEventArgs.TargetArgument = fetchXml;
             OnOutgoingMessage(this, messageBusEventArgs);
         }
 
         public void OnIncomingMessage(MessageBusEventArgs message)
         {
+            if (message.SourcePlugin != "FetchXML Builder") return;
 
-            if (message.SourcePlugin == "FetchXML Builder" &&
-                        message.TargetArgument is FXBMessageBusArgument)
-            {
-                var fxbArg = (FXBMessageBusArgument)message.TargetArgument;
-                txtFetchXml.Text = fxbArg.FetchXML;
-                FormatXML(true);
-                fetchXml = fxbArg.FetchXML;
-            }
+            txtFetchXml.Text = (string)message.TargetArgument;
+            FormatXML(true);
         }
 
         private void FormatXML(bool silent)
@@ -605,26 +552,11 @@ namespace Ryr.ExcelExport
 
         public event EventHandler<MessageBusEventArgs> OnOutgoingMessage;
 
-        public string RepositoryName
-        {
-            get { return "mscrmexporttoexcel"; }
-        }
+        public string RepositoryName => "mscrmexporttoexcel";
 
-        public string UserName
-        {
-            get
-            {
-                return "rajyraman";
-            }
-        }
+        public string UserName => "rajyraman";
 
-        public string HelpUrl
-        {
-            get
-            {
-                return "https://github.com/rajyraman/mscrmexporttoexcel/blob/master/README.md";
-            }
-        }
+        public string HelpUrl => "https://github.com/rajyraman/mscrmexporttoexcel/blob/master/README.md";
     }
 
     internal class AttributeInfo
