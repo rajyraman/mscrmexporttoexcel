@@ -1,2 +1,15 @@
 ﻿Excel  Icon from http://findicons.com/icon/158499/xlsx
 Creative Commons Attribution
+
+# EPPlus 5
+
+## Announcement: new license model from version 5
+EPPlus has from this new major version changed license from LGPL to [Polyform Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0/).
+
+With the new license EPPlus is still free to use in some cases, but will require a commercial license to be used in a commercial business.
+
+This is explained in more detail [here](https://www.epplussoftware.com/Home/LgplToPolyform).
+
+Commercial licenses, which includes support, can be purchased at (https://www.epplussoftware.com/).
+
+The source code of EPPlus has moved to a [new github repository](https://github.com/EPPlusSoftware/EPPlus)

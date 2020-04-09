@@ -1,13 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Windows.Forms;
-using System.Xml.Linq;
-using McTools.Xrm.Connection;
+﻿using McTools.Xrm.Connection;
 using Microsoft.Crm.Sdk.Messages;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
@@ -15,19 +6,30 @@ using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Query;
 using MsCrmTools.ViewLayoutReplicator.Helpers;
 using OfficeOpenXml;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Drawing;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Windows.Forms;
+using System.Xml.Linq;
 using Tanguy.WinForm.Utilities.DelegatesHelpers;
 using XrmToolBox.Extensibility;
+using XrmToolBox.Extensibility.Args;
 using XrmToolBox.Extensibility.Interfaces;
 
 namespace Ryr.ExcelExport
 {
-    public partial class ExcelExportPlugin : PluginControlBase, IMessageBusHost, IGitHubPlugin, IHelpPlugin
+    public partial class ExcelExportPlugin : PluginControlBase, IMessageBusHost, IGitHubPlugin, IHelpPlugin, IStatusBarMessenger, IShortcutReceiver
     {
         private static int fileNumber = 0;
         private List<EntityMetadata> entitiesCache;
         private string fetchXml;
         private Dictionary<string, object> optionsetCache = new Dictionary<string, object>();
-        
+
         public ExcelExportPlugin()
         {
             InitializeComponent();
@@ -246,17 +248,18 @@ namespace Ryr.ExcelExport
                 ExecuteMethod(ExportCurrentViewToExcel, dialog.FileName);
             }
         }
-        
+
         private void WriteToExcel(List<string> headers, List<List<string>> rows, string fileName)
         {
+            ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
             using (var outputFile = new ExcelPackage())
             {
                 var ws = outputFile.Workbook.Worksheets.Add("Result");
-                
+
                 //write headers first
                 for (var columnNumber = 0; columnNumber < headers.Count; columnNumber++)
                 {
-                    ws.Cells[1, columnNumber+1].Value = headers[columnNumber];
+                    ws.Cells[1, columnNumber + 1].Value = headers[columnNumber];
                 }
 
                 //actual data rows
@@ -270,14 +273,14 @@ namespace Ryr.ExcelExport
 
                 if (!rows.Any()) return;
 
-                outputFile.File = fileNumber > 0 ? 
-                    new FileInfo(fileName.Replace(".xlsx", $"_{fileNumber}.xlsx")) : 
+                outputFile.File = fileNumber > 0 ?
+                    new FileInfo(fileName.Replace(".xlsx", $"_{fileNumber}.xlsx")) :
                     new FileInfo(fileName);
                 fileNumber++;
                 outputFile.Save();
             }
         }
-        
+
         private void ExportCurrentViewToExcel(string fileName)
         {
             WorkAsync(new WorkAsyncInfo("Retrieving records..", (w, e) =>
@@ -294,9 +297,9 @@ namespace Ryr.ExcelExport
                         linkElement.SetAttributeValue("alias", "e" + string.Join("", Guid.NewGuid().ToString().Split('-')));
                     }
                 }
-                
+
                 var fetchToQuery = new FetchXmlToQueryExpressionRequest { FetchXml = fetchElements.ToString() };
-                var retrieveQuery = ((FetchXmlToQueryExpressionResponse) Service.Execute(fetchToQuery)).Query;
+                var retrieveQuery = ((FetchXmlToQueryExpressionResponse)Service.Execute(fetchToQuery)).Query;
                 var fetchXmlCount = Convert.ToInt32(fetchElements.Attribute("count")?.Value ?? "0");
                 var fetchXmlPageNumber = Convert.ToInt32(fetchElements.Attribute("page")?.Value ?? "1");
                 retrieveQuery.PageInfo = new PagingInfo
@@ -339,7 +342,7 @@ namespace Ryr.ExcelExport
                             }
                             rowValues.Add(attributeValue);
                         }
-                        
+
                         rows.Add(rowValues);
 
                         if (rows.Count == maxRowsPerFile.Value)
@@ -355,7 +358,7 @@ namespace Ryr.ExcelExport
 
                     if (fetchXmlCount > 0) break;
                 } while (results.MoreRecords);
-                
+
                 //Write any leftover rows
                 if (rows.Any())
                 {
@@ -365,7 +368,22 @@ namespace Ryr.ExcelExport
 
             })
             {
-                PostWorkCallBack = (c) => MessageBox.Show($"{c.Result} records exported"),
+                PostWorkCallBack = (c) =>
+                {
+                    if (c.Error != null)
+                    {
+                        MessageBox.Show(this, "An error occured while exporting the Excel file: " + c.Error.ToString(), "Error",
+                                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    else
+                    {
+                        SendMessageToStatusBar(this, new StatusBarMessageEventArgs($"{c.Result} records exported.."));
+                        if (DialogResult.Yes == MessageBox.Show(this, "Do you want to open exported file?", "Question", MessageBoxButtons.YesNo, MessageBoxIcon.Question))
+                        {
+                            Process.Start(fileName);
+                        }
+                    }
+                },
                 ProgressChanged = (c) => SetWorkingMessage(c.UserState.ToString())
             });
         }
@@ -385,7 +403,7 @@ namespace Ryr.ExcelExport
             {
                 w.ReportProgress(0, $"Retrieving metadata for {attribute.AttributeName}...");
                 var attributeResponse =
-                    (RetrieveAttributeResponse) Service.Execute(new RetrieveAttributeRequest
+                    (RetrieveAttributeResponse)Service.Execute(new RetrieveAttributeRequest
                     {
                         LogicalName = attribute.AttributeName,
                         EntityLogicalName = attribute.EntityName
@@ -396,7 +414,7 @@ namespace Ryr.ExcelExport
                     w.ReportProgress(0,
                         $"Retrieving metadata for {attributeResponse.AttributeMetadata.AttributeOf}...");
                     attributeResponse =
-                        (RetrieveAttributeResponse) Service.Execute(new RetrieveAttributeRequest
+                        (RetrieveAttributeResponse)Service.Execute(new RetrieveAttributeRequest
                         {
                             LogicalName = attributeResponse.AttributeMetadata.AttributeOf,
                             EntityLogicalName = attribute.EntityName
@@ -411,11 +429,11 @@ namespace Ryr.ExcelExport
 
         private object UnwrapAttribute(string attributeName, string entityName, object attributeValue)
         {
-            var cacheKey = string.Empty;
             if (attributeValue == null)
             {
                 return string.Empty;
             }
+            string cacheKey;
             switch (attributeValue)
             {
                 case EntityReference e:
@@ -442,7 +460,7 @@ namespace Ryr.ExcelExport
                 case AliasedValue a:
                     return UnwrapAttribute(attributeName, entityName, a.Value);
                 case DateTime d:
-                    return d.ToLocalTime().ToString(CultureInfo.CurrentCulture.DateTimeFormat);
+                    return d.Kind == DateTimeKind.Utc ? d.ToLocalTime().ToString(CultureInfo.CurrentCulture.DateTimeFormat) : d.ToString(CultureInfo.CurrentCulture.DateTimeFormat);
                 default:
                     return attributeValue;
             }
@@ -550,7 +568,28 @@ namespace Ryr.ExcelExport
             }
         }
 
+        public void ReceiveKeyDownShortcut(KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F5 && tsbExportExcel.Enabled)
+            {
+                RequestFileDetails();
+            }
+        }
+
+        public void ReceiveKeyPressShortcut(KeyPressEventArgs e)
+        {
+        }
+
+        public void ReceiveKeyUpShortcut(KeyEventArgs e)
+        {
+        }
+
+        public void ReceivePreviewKeyDownShortcut(PreviewKeyDownEventArgs e)
+        {
+        }
+
         public event EventHandler<MessageBusEventArgs> OnOutgoingMessage;
+        public event EventHandler<StatusBarMessageEventArgs> SendMessageToStatusBar;
 
         public string RepositoryName => "mscrmexporttoexcel";
 
