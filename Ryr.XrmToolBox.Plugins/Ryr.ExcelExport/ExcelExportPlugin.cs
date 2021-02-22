@@ -448,7 +448,7 @@ namespace Ryr.ExcelExport
                     {
                         optionSetValueTextValues.Add(RetrieveOptionsetText(optionSet.Value, attributeName, entityName));
                     }                                       
-                    return string.Join(";", optionSetValueTextValues);
+                    return string.Join("; ", optionSetValueTextValues);
                 case bool b:
                     cacheKey = $"{attributeName}:{entityName}:{b}";
                     if (!optionsetCache.ContainsKey(cacheKey))
