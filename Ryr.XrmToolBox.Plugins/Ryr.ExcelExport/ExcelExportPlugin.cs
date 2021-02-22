@@ -440,12 +440,15 @@ namespace Ryr.ExcelExport
                     return e.Name;
                 case OptionSetValue o:
                     var optionSetValue = o.Value;
-                    cacheKey = $"{attributeName}:{entityName}:{optionSetValue}";
-                    if (!optionsetCache.ContainsKey(cacheKey))
+                    return RetrieveOptionsetText(optionSetValue, attributeName, entityName);
+                case OptionSetValueCollection oc:
+                    var optionSetValueCollection = oc;
+                    var optionSetValueTextValues = new List<string>();
+                    foreach(var optionSet in oc)
                     {
-                        optionsetCache[cacheKey] = RetrieveOptionsetText(optionSetValue, attributeName, entityName);
-                    }
-                    return optionsetCache[cacheKey];
+                        optionSetValueTextValues.Add(RetrieveOptionsetText(optionSet.Value, attributeName, entityName));
+                    }                                       
+                    return string.Join(";", optionSetValueTextValues);
                 case bool b:
                     cacheKey = $"{attributeName}:{entityName}:{b}";
                     if (!optionsetCache.ContainsKey(cacheKey))
@@ -483,29 +486,37 @@ namespace Ryr.ExcelExport
                 optionsetText = optionMetaData.Label.UserLocalizedLabel.Label;
             }
             return optionsetText;
-        }
+        }        
 
         private string RetrieveOptionsetText(int optionsetValue, string attributeName, string entityName)
         {
-            var optionsetText = string.Empty;
-            var retrieveAttributeRequest = new RetrieveAttributeRequest
+            var cacheKey = $"{attributeName}:{entityName}:{optionsetValue}";
+            if (!optionsetCache.ContainsKey(cacheKey))
             {
-                EntityLogicalName = entityName,
-                LogicalName = attributeName,
-                RetrieveAsIfPublished = true
-            };
-            var retrieveAttributeResponse = (RetrieveAttributeResponse)Service.Execute(retrieveAttributeRequest);
-            var optionSets = retrieveAttributeResponse.AttributeMetadata;
-            OptionMetadata optionMetaData = null;
-            if (optionSets is EnumAttributeMetadata p)
-            {
-                optionMetaData = p.OptionSet.Options.FirstOrDefault(x => x.Value == optionsetValue);
+                var optionsetText = string.Empty;
+                var retrieveAttributeRequest = new RetrieveAttributeRequest
+                {
+                    EntityLogicalName = entityName,
+                    LogicalName = attributeName,
+                    RetrieveAsIfPublished = true
+                };
+                var retrieveAttributeResponse = (RetrieveAttributeResponse)Service.Execute(retrieveAttributeRequest);
+                var optionSets = retrieveAttributeResponse.AttributeMetadata;
+                OptionMetadata optionMetaData = null;
+                if (optionSets is EnumAttributeMetadata p)
+                {
+                    optionMetaData = p.OptionSet.Options.FirstOrDefault(x => x.Value == optionsetValue);
+                }
+                if (optionMetaData != null)
+                {
+                    optionsetText = optionMetaData.Label.UserLocalizedLabel.Label;
+                }
+                return optionsetText;
             }
-            if (optionMetaData != null)
+            else
             {
-                optionsetText = optionMetaData.Label.UserLocalizedLabel.Label;
+                return optionsetCache[cacheKey].ToString();
             }
-            return optionsetText;
         }
 
         private void lvEntities_ColumnClick(object sender, ColumnClickEventArgs e)
