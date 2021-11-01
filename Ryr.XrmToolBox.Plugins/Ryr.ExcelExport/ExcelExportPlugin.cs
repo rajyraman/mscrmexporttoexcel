@@ -14,6 +14,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Windows.Forms;
 using System.Xml.Linq;
 using Tanguy.WinForm.Utilities.DelegatesHelpers;
@@ -33,6 +34,11 @@ namespace Ryr.ExcelExport
         public ExcelExportPlugin()
         {
             InitializeComponent();
+#if DEBUG
+            Debugger.Launch();
+#endif
+            var path = Assembly.GetExecutingAssembly().Location;
+            Assembly.LoadFrom(Path.Combine(path.Substring(0, path.LastIndexOf('\\')), @"Ryr.ExcelExport\EPPlus.dll"));
         }
 
         private void tsbLoadEntities_Click(object sender, EventArgs e)
