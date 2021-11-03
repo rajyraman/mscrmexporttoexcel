@@ -263,11 +263,9 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>if $(ConfigurationName) == Debug (
-  copy /Y Ryr.*.dll %25APPDATA%25\MscrmTools\XrmToolBox\Plugins\
+    <PostBuildEvent>copy /Y Ryr.*.dll %25APPDATA%25\MscrmTools\XrmToolBox\Plugins\
   copy /Y EPPlus.dll %25APPDATA%25\MscrmTools\XrmToolBox\Plugins\Ryr.ExcelExport
-  copy /Y Ryr.*.pdb %25APPDATA%25\MscrmTools\XrmToolBox\Plugins\
-)</PostBuildEvent>
+  copy /Y Ryr.*.pdb %25APPDATA%25\MscrmTools\XrmToolBox\Plugins\</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

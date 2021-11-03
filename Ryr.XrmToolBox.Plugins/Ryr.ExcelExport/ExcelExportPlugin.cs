@@ -37,8 +37,7 @@ namespace Ryr.ExcelExport
 #if DEBUG
             Debugger.Launch();
 #endif
-            var path = Assembly.GetExecutingAssembly().Location;
-            Assembly.LoadFrom(Path.Combine(path.Substring(0, path.LastIndexOf('\\')), @"Ryr.ExcelExport\EPPlus.dll"));
+            Assembly.LoadFrom(Path.Combine(Paths.XrmToolBoxPath, @"Plugins\Ryr.ExcelExport\EPPlus.dll"));
         }
 
         private void tsbLoadEntities_Click(object sender, EventArgs e)
