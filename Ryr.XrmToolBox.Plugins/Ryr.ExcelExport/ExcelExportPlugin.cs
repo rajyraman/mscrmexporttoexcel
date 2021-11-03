@@ -34,10 +34,6 @@ namespace Ryr.ExcelExport
         public ExcelExportPlugin()
         {
             InitializeComponent();
-#if DEBUG
-            Debugger.Launch();
-#endif
-            Assembly.LoadFrom(Path.Combine(Paths.XrmToolBoxPath, @"Plugins\Ryr.ExcelExport\EPPlus.dll"));
         }
 
         private void tsbLoadEntities_Click(object sender, EventArgs e)

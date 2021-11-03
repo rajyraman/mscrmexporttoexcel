@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using XrmToolBox.Extensibility;
@@ -20,9 +22,44 @@ namespace Ryr.ExcelExport
     [ExportMetadata("SmallImageBase64", "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")]
     public class Plugin : PluginBase
     {
+        public Plugin()
+        {
+            AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(AssemblyResolveEventHandler);
+        }
+
         public override IXrmToolBoxPluginControl GetControl()
         {
             return new ExcelExportPlugin();
+        }
+
+        //https://github.com/albanian-xrm/Early-Bound/blob/c1b9617f681410e5ea508e32626fca4b2c9371a5/AlbanianXrm.EarlyBound/MyPlugin.cs#L39-L85
+        private Assembly AssemblyResolveEventHandler(object sender, ResolveEventArgs args)
+        {
+            Assembly loadAssembly = null;
+            Assembly currAssembly = Assembly.GetExecutingAssembly();
+
+            // base name of the assembly that failed to resolve
+            var argName = args.Name.Substring(0, args.Name.IndexOf(",", StringComparison.InvariantCulture));
+
+            // check to see if the failing assembly is one that we reference.
+            var refAssemblies = currAssembly.GetReferencedAssemblies().ToList();
+            var refAssembly = refAssemblies.FirstOrDefault(a => a.Name == argName);
+
+            // if the current unresolved assembly is referenced by our plugin, attempt to load
+            if (refAssembly == null) return loadAssembly;
+
+            // load from the path to this plugin assembly, not host executable
+            string dir = Path.GetDirectoryName(currAssembly.Location).ToUpperInvariant();
+            string folder = Path.GetFileNameWithoutExtension(currAssembly.Location);
+            dir = Path.Combine(dir, folder);
+
+            var assemblyPath = Path.Combine(dir, $"{argName}.dll");
+
+            loadAssembly = File.Exists(assemblyPath)
+                ? Assembly.LoadFrom(assemblyPath)
+                : throw new FileNotFoundException($"Unable to locate dependency: {assemblyPath}");
+
+            return loadAssembly;
         }
     }
 }
