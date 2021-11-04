@@ -301,7 +301,9 @@ namespace Ryr.ExcelExport
 
                 var fetchToQuery = new FetchXmlToQueryExpressionRequest { FetchXml = fetchElements.ToString() };
                 var retrieveQuery = ((FetchXmlToQueryExpressionResponse)Service.Execute(fetchToQuery)).Query;
-                var fetchXmlCount = Convert.ToInt32(fetchElements.Attribute("count")?.Value ?? "0");
+                var fetchXmlCount = (int)batchSize.Value;
+                if(fetchElements.Attribute("count") != null)
+                    fetchXmlCount = Convert.ToInt32(fetchElements.Attribute("count")?.Value ?? "500");
                 var fetchXmlPageNumber = Convert.ToInt32(fetchElements.Attribute("page")?.Value ?? "1");
                 retrieveQuery.PageInfo = new PagingInfo
                 {
@@ -356,8 +358,6 @@ namespace Ryr.ExcelExport
                     totalRecordCount += results.Entities.Count;
                     retrieveQuery.PageInfo.PageNumber++;
                     retrieveQuery.PageInfo.PagingCookie = results.PagingCookie;
-
-                    if (fetchXmlCount > 0) break;
                 } while (results.MoreRecords);
 
                 //Write any leftover rows

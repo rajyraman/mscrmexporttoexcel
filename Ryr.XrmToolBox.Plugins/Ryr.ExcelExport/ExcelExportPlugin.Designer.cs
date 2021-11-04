@@ -149,7 +149,7 @@
             this.tsbExportExcel.Image = ((System.Drawing.Image)(resources.GetObject("tsbExportExcel.Image")));
             this.tsbExportExcel.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.tsbExportExcel.Name = "tsbExportExcel";
-            this.tsbExportExcel.Size = new System.Drawing.Size(103, 22);
+            this.tsbExportExcel.Size = new System.Drawing.Size(105, 22);
             this.tsbExportExcel.Text = "Export to Excel";
             this.tsbExportExcel.Click += new System.EventHandler(this.tsbExportExcel_Click);
             // 
@@ -259,7 +259,7 @@
             0,
             0});
             this.batchSize.Minimum = new decimal(new int[] {
-            500,
+            50,
             0,
             0,
             0});
