@@ -33,10 +33,6 @@
             this.toolStripMain = new System.Windows.Forms.ToolStrip();
             this.tsbClose = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
-            this.tsbLoadEntities = new System.Windows.Forms.ToolStripButton();
-            this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
-            this.tsbRefresh = new System.Windows.Forms.ToolStripButton();
-            this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
             this.tsbExportExcel = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
             this.tsbEditInFxb = new System.Windows.Forms.ToolStripButton();
@@ -49,9 +45,7 @@
             this.batchSize = new System.Windows.Forms.NumericUpDown();
             this.label1 = new System.Windows.Forms.Label();
             this.gbEntities = new System.Windows.Forms.GroupBox();
-            this.lvEntities = new System.Windows.Forms.ListView();
-            this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.lvEntities = new xrmtb.XrmToolBox.Controls.EntitiesListControl();
             this.splitContainer2 = new System.Windows.Forms.SplitContainer();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.lvViews = new System.Windows.Forms.ListView();
@@ -85,10 +79,6 @@
             this.toolStripMain.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.tsbClose,
             this.toolStripSeparator1,
-            this.tsbLoadEntities,
-            this.toolStripSeparator2,
-            this.tsbRefresh,
-            this.toolStripSeparator3,
             this.tsbExportExcel,
             this.toolStripSeparator4,
             this.tsbEditInFxb,
@@ -113,35 +103,6 @@
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
             this.toolStripSeparator1.Size = new System.Drawing.Size(6, 25);
-            // 
-            // tsbLoadEntities
-            // 
-            this.tsbLoadEntities.Image = ((System.Drawing.Image)(resources.GetObject("tsbLoadEntities.Image")));
-            this.tsbLoadEntities.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.tsbLoadEntities.Name = "tsbLoadEntities";
-            this.tsbLoadEntities.Size = new System.Drawing.Size(94, 22);
-            this.tsbLoadEntities.Text = "Load Entities";
-            this.tsbLoadEntities.Click += new System.EventHandler(this.tsbLoadEntities_Click);
-            // 
-            // toolStripSeparator2
-            // 
-            this.toolStripSeparator2.Name = "toolStripSeparator2";
-            this.toolStripSeparator2.Size = new System.Drawing.Size(6, 25);
-            // 
-            // tsbRefresh
-            // 
-            this.tsbRefresh.Enabled = false;
-            this.tsbRefresh.Image = ((System.Drawing.Image)(resources.GetObject("tsbRefresh.Image")));
-            this.tsbRefresh.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.tsbRefresh.Name = "tsbRefresh";
-            this.tsbRefresh.Size = new System.Drawing.Size(66, 22);
-            this.tsbRefresh.Text = "Refresh";
-            this.tsbRefresh.Click += new System.EventHandler(this.tsbRefresh_Click);
-            // 
-            // toolStripSeparator3
-            // 
-            this.toolStripSeparator3.Name = "toolStripSeparator3";
-            this.toolStripSeparator3.Size = new System.Drawing.Size(6, 25);
             // 
             // tsbExportExcel
             // 
@@ -187,7 +148,7 @@
             // 
             this.splitContainer1.Panel2.Controls.Add(this.splitContainer2);
             this.splitContainer1.Size = new System.Drawing.Size(900, 483);
-            this.splitContainer1.SplitterDistance = 272;
+            this.splitContainer1.SplitterDistance = 472;
             this.splitContainer1.TabIndex = 1;
             // 
             // splitContainer3
@@ -205,7 +166,7 @@
             // splitContainer3.Panel2
             // 
             this.splitContainer3.Panel2.Controls.Add(this.gbEntities);
-            this.splitContainer3.Size = new System.Drawing.Size(272, 483);
+            this.splitContainer3.Size = new System.Drawing.Size(472, 483);
             this.splitContainer3.SplitterDistance = 59;
             this.splitContainer3.TabIndex = 2;
             // 
@@ -219,7 +180,7 @@
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox1.Location = new System.Drawing.Point(0, 0);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(272, 59);
+            this.groupBox1.Size = new System.Drawing.Size(472, 59);
             this.groupBox1.TabIndex = 1;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Export Settings";
@@ -287,39 +248,36 @@
             this.gbEntities.Dock = System.Windows.Forms.DockStyle.Fill;
             this.gbEntities.Location = new System.Drawing.Point(0, 0);
             this.gbEntities.Name = "gbEntities";
-            this.gbEntities.Size = new System.Drawing.Size(272, 420);
+            this.gbEntities.Size = new System.Drawing.Size(472, 420);
             this.gbEntities.TabIndex = 0;
             this.gbEntities.TabStop = false;
             this.gbEntities.Text = "Entities";
             // 
             // lvEntities
             // 
-            this.lvEntities.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.columnHeader1,
-            this.columnHeader2});
+            this.lvEntities.AutoLoadData = true;
+            this.lvEntities.AutosizeColumns = System.Windows.Forms.ColumnHeaderAutoResizeStyle.ColumnContent;
+            this.lvEntities.Checkboxes = false;
+            this.lvEntities.DisplaySolutionDropdown = true;
+            this.lvEntities.DisplayToolbar = true;
             this.lvEntities.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lvEntities.FullRowSelect = true;
-            this.lvEntities.HideSelection = false;
+            this.lvEntities.EntityTypes = xrmtb.XrmToolBox.Controls.EnumEntityTypes.BothCustomAndSystem;
+            this.lvEntities.LanguageCode = 1033;
+            this.lvEntities.ListViewColDefs = new xrmtb.XrmToolBox.Controls.ListViewColumnDef[] {
+        ((xrmtb.XrmToolBox.Controls.ListViewColumnDef)(resources.GetObject("lvEntities.ListViewColDefs"))),
+        ((xrmtb.XrmToolBox.Controls.ListViewColumnDef)(resources.GetObject("lvEntities.ListViewColDefs1"))),
+        ((xrmtb.XrmToolBox.Controls.ListViewColumnDef)(resources.GetObject("lvEntities.ListViewColDefs2"))),
+        ((xrmtb.XrmToolBox.Controls.ListViewColumnDef)(resources.GetObject("lvEntities.ListViewColDefs3"))),
+        ((xrmtb.XrmToolBox.Controls.ListViewColumnDef)(resources.GetObject("lvEntities.ListViewColDefs4")))};
             this.lvEntities.Location = new System.Drawing.Point(3, 16);
-            this.lvEntities.MultiSelect = false;
             this.lvEntities.Name = "lvEntities";
-            this.lvEntities.Size = new System.Drawing.Size(266, 401);
-            this.lvEntities.Sorting = System.Windows.Forms.SortOrder.Ascending;
+            this.lvEntities.RetrieveAsIfPublished = true;
+            this.lvEntities.Service = null;
+            this.lvEntities.Size = new System.Drawing.Size(466, 401);
+            this.lvEntities.SolutionFilter = null;
             this.lvEntities.TabIndex = 0;
-            this.lvEntities.UseCompatibleStateImageBehavior = false;
-            this.lvEntities.View = System.Windows.Forms.View.Details;
-            this.lvEntities.ColumnClick += new System.Windows.Forms.ColumnClickEventHandler(this.lvEntities_ColumnClick);
-            this.lvEntities.SelectedIndexChanged += new System.EventHandler(this.lvEntities_SelectedIndexChanged);
-            // 
-            // columnHeader1
-            // 
-            this.columnHeader1.Text = "Display Name";
-            this.columnHeader1.Width = 134;
-            // 
-            // columnHeader2
-            // 
-            this.columnHeader2.Text = "Schema Name";
-            this.columnHeader2.Width = 141;
+            this.lvEntities.SelectedItemChanged += new System.EventHandler(this.lvEntities_SelectedItemChanged);
+            this.lvEntities.LoadDataComplete += new System.EventHandler(this.lvEntities_LoadDataComplete);
             // 
             // splitContainer2
             // 
@@ -335,7 +293,7 @@
             // splitContainer2.Panel2
             // 
             this.splitContainer2.Panel2.Controls.Add(this.groupBox3);
-            this.splitContainer2.Size = new System.Drawing.Size(624, 483);
+            this.splitContainer2.Size = new System.Drawing.Size(424, 483);
             this.splitContainer2.SplitterDistance = 155;
             this.splitContainer2.TabIndex = 0;
             // 
@@ -346,7 +304,7 @@
             this.groupBox2.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox2.Location = new System.Drawing.Point(0, 0);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(624, 155);
+            this.groupBox2.Size = new System.Drawing.Size(424, 155);
             this.groupBox2.TabIndex = 0;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Views";
@@ -362,7 +320,7 @@
             this.lvViews.Location = new System.Drawing.Point(3, 16);
             this.lvViews.MultiSelect = false;
             this.lvViews.Name = "lvViews";
-            this.lvViews.Size = new System.Drawing.Size(618, 136);
+            this.lvViews.Size = new System.Drawing.Size(418, 136);
             this.lvViews.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.lvViews.TabIndex = 0;
             this.lvViews.UseCompatibleStateImageBehavior = false;
@@ -386,7 +344,7 @@
             this.groupBox3.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox3.Location = new System.Drawing.Point(0, 0);
             this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Size = new System.Drawing.Size(624, 324);
+            this.groupBox3.Size = new System.Drawing.Size(424, 324);
             this.groupBox3.TabIndex = 0;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "FetchXml";
@@ -403,7 +361,7 @@
             xmlViewerSettings1.Tag = System.Drawing.Color.Blue;
             xmlViewerSettings1.Value = System.Drawing.Color.Black;
             this.txtFetchXml.Settings = xmlViewerSettings1;
-            this.txtFetchXml.Size = new System.Drawing.Size(618, 305);
+            this.txtFetchXml.Size = new System.Drawing.Size(418, 305);
             this.txtFetchXml.TabIndex = 0;
             this.txtFetchXml.Text = "";
             // 
@@ -448,20 +406,13 @@
 
         private System.Windows.Forms.ToolStrip toolStripMain;
         private System.Windows.Forms.ToolStripButton tsbClose;
-        private System.Windows.Forms.ToolStripButton tsbLoadEntities;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
-        private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
-        private System.Windows.Forms.ToolStripButton tsbRefresh;
-        private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
         private System.Windows.Forms.ToolStripButton tsbExportExcel;
         private System.Windows.Forms.SplitContainer splitContainer1;
         private System.Windows.Forms.GroupBox gbEntities;
         private System.Windows.Forms.SplitContainer splitContainer2;
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.GroupBox groupBox3;
-        private System.Windows.Forms.ListView lvEntities;
-        private System.Windows.Forms.ColumnHeader columnHeader1;
-        private System.Windows.Forms.ColumnHeader columnHeader2;
         private System.Windows.Forms.ListView lvViews;
         private System.Windows.Forms.ColumnHeader columnHeader3;
         private System.Windows.Forms.ColumnHeader columnHeader4;
@@ -475,5 +426,6 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.NumericUpDown batchSize;
         private System.Windows.Forms.Label label1;
+        private xrmtb.XrmToolBox.Controls.EntitiesListControl lvEntities;
     }
 }
