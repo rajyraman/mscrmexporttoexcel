@@ -35,85 +35,17 @@ namespace Ryr.ExcelExport
         {
             InitializeComponent();
         }
-
-        private void tsbLoadEntities_Click(object sender, EventArgs e)
+        public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail, string actionName, object parameter)
         {
-            ExecuteMethod(LoadEntities);
-        }
-
-        private void LoadEntities()
-        {
-            fetchXml = string.Empty;
-            lvEntities.Items.Clear();
-            gbEntities.Enabled = false;
-            tsbLoadEntities.Enabled = false;
-            tsbRefresh.Enabled = false;
-            tsbExportExcel.Enabled = false;
-            tsbEditInFxb.Enabled = false;
-            lvViews.Items.Clear();
-            txtFetchXml.Text = "";
-            WorkAsync(new WorkAsyncInfo("Loading entities...", e =>
-            {
-                e.Result = MetadataHelper.RetrieveEntities(Service);
-            })
-            {
-                PostWorkCallBack = completedargs =>
-                {
-                    if (completedargs.Error != null)
-                    {
-                        string errorMessage = CrmExceptionHelper.GetErrorMessage(completedargs.Error, true);
-                        CommonDelegates.DisplayMessageBox(ParentForm, errorMessage, "Error", MessageBoxButtons.OK,
-                                                          MessageBoxIcon.Error);
-                    }
-                    else
-                    {
-                        entitiesCache = (List<EntityMetadata>)completedargs.Result;
-                        lvEntities.Items.Clear();
-                        var list = new List<ListViewItem>();
-                        foreach (EntityMetadata emd in (List<EntityMetadata>)completedargs.Result)
-                        {
-                            var item = new ListViewItem { Text = emd.DisplayName.UserLocalizedLabel.Label, Tag = emd.LogicalName };
-                            item.SubItems.Add(emd.LogicalName);
-                            list.Add(item);
-                        }
-
-                        lvEntities.Items.AddRange(list.ToArray());
-                        lvEntities.AutoResizeColumns(ColumnHeaderAutoResizeStyle.ColumnContent);
-                        gbEntities.Enabled = true;
-                        gbEntities.Enabled = true;
-                        tsbLoadEntities.Enabled = true;
-                        tsbRefresh.Enabled = true;
-                    }
-                }
-            });
-        }
-
-        private void lvEntities_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (lvEntities.SelectedItems.Count > 0)
-            {
-                string entityLogicalName = lvEntities.SelectedItems[0].Tag.ToString();
-
-                // Reinit other controls
-                lvViews.Items.Clear();
-                txtFetchXml.Text = string.Empty;
-                fetchXml = string.Empty;
-                Cursor = Cursors.WaitCursor;
-
-                // Launch treatment
-                var bwFillViews = new BackgroundWorker();
-                bwFillViews.DoWork += BwFillViewsDoWork;
-                bwFillViews.RunWorkerAsync(entityLogicalName);
-                bwFillViews.RunWorkerCompleted += BwFillViewsRunWorkerCompleted;
-            }
+            base.UpdateConnection(newService, detail, actionName, parameter);
+            lvEntities.UpdateConnection(Service);
         }
 
         private void BwFillViewsDoWork(object sender, DoWorkEventArgs e)
         {
-            string entityLogicalName = e.Argument.ToString();
+            var selectedEntity = e.Argument as EntityMetadata;
 
-            List<Entity> viewsList = ViewHelper.RetrieveViews(entityLogicalName, entitiesCache, Service);
-            viewsList.AddRange(ViewHelper.RetrieveUserViews(entityLogicalName, entitiesCache, Service));
+            var viewsList = ViewHelper.RetrieveViews(selectedEntity, Service);
 
             foreach (Entity view in viewsList)
             {
@@ -199,7 +131,7 @@ namespace Ryr.ExcelExport
             lvViews.AutoResizeColumns(ColumnHeaderAutoResizeStyle.ColumnContent);
         }
 
-        private void BwFillViewsRunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        private void BwFillViewsRunWorkerCompleted(RunWorkerCompletedEventArgs e)
         {
             Cursor = Cursors.Default;
             lvViews.Enabled = true;
@@ -242,7 +174,7 @@ namespace Ryr.ExcelExport
             var dialog = new SaveFileDialog
             {
                 Filter = "Excel  Workbook(*.xlsx)|*.xlsx",
-                FileName = $"{lvEntities.SelectedItems[0].SubItems[0].Text}-{DateTime.Today.ToString("yyyyMMdd")}.xlsx"
+                FileName = $"{lvEntities.SelectedEntity.CollectionSchemaName}-{DateTime.Today.ToString("yyyyMMdd")}.xlsx"
             };
             if (dialog.ShowDialog() == DialogResult.OK)
             {
@@ -520,13 +452,6 @@ namespace Ryr.ExcelExport
             }
         }
 
-        private void lvEntities_ColumnClick(object sender, ColumnClickEventArgs e)
-        {
-            lvEntities.SelectedItems.Clear();
-            lvEntities.Sorting = lvEntities.Sorting == SortOrder.Ascending ? SortOrder.Descending : SortOrder.Ascending;
-            lvEntities.ListViewItemSorter = new ListViewItemComparer(e.Column, lvEntities.Sorting);
-        }
-
         private void lvViews_ColumnClick(object sender, ColumnClickEventArgs e)
         {
             lvViews.SelectedItems.Clear();
@@ -537,11 +462,6 @@ namespace Ryr.ExcelExport
         private void tsbClose_Click(object sender, EventArgs e)
         {
             base.CloseTool();
-        }
-
-        private void tsbRefresh_Click(object sender, EventArgs e)
-        {
-            ExecuteMethod(LoadEntities);
         }
 
         private void tsbEditInFxb_Click(object sender, EventArgs e)
@@ -608,6 +528,40 @@ namespace Ryr.ExcelExport
         public string UserName => "rajyraman";
 
         public string HelpUrl => "https://github.com/rajyraman/mscrmexporttoexcel/blob/master/README.md";
+
+        private void lvEntities_SelectedItemChanged(object sender, EventArgs ea)
+        {
+            if (lvEntities.SelectedEntity == null) return;
+
+            // Reinit other controls
+            lvViews.Items.Clear();
+            txtFetchXml.Text = string.Empty;
+            fetchXml = string.Empty;
+            Cursor = Cursors.WaitCursor;
+
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = "Loading views..",
+                Work = BwFillViewsDoWork,
+                AsyncArgument = lvEntities.SelectedEntity,
+                ProgressChanged = e =>
+                {
+                    SetWorkingMessage(e.UserState.ToString());
+                },
+                PostWorkCallBack = BwFillViewsRunWorkerCompleted
+            });
+        }
+
+        private void lvEntities_LoadDataComplete(object sender, EventArgs e)
+        {
+            if (entitiesCache == null)
+            {
+                entitiesCache = lvEntities.AllEntities;
+            }
+            lvViews.Items.Clear();
+            txtFetchXml.Text = string.Empty;
+            fetchXml = string.Empty;
+        }
     }
 
     internal class AttributeInfo
