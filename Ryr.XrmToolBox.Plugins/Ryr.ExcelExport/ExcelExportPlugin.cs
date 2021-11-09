@@ -284,6 +284,9 @@ namespace Ryr.ExcelExport
 
         private void ExportCurrentViewToExcel(string fileName)
         {
+#if DEBUG
+            Debugger.Launch();
+#endif
             WorkAsync(new WorkAsyncInfo("Retrieving records..", (w, e) =>
             {
                 if (lvViews.SelectedItems.Count == 0 || txtFetchXml.Text == string.Empty)
@@ -310,9 +313,15 @@ namespace Ryr.ExcelExport
                     PageNumber = fetchXmlPageNumber,
                     Count = fetchXmlCount
                 };
+                retrieveQuery.NoLock = true;
+                var totalRecordCountForEntity = ((RetrieveTotalRecordCountResponse)Service.Execute(
+                    new RetrieveTotalRecordCountRequest
+                    {
+                        EntityNames = new string[] { retrieveQuery.EntityName }
+                    })).EntityRecordCountCollection.First().Value;
                 fileNumber = 0;
                 EntityCollection results;
-                var totalRecordCount = 0;
+                var processedRecordCount = 0;
                 var pageNumber = 0;
                 var headers = new List<string>();
                 var rows = new List<List<string>>();
@@ -322,7 +331,7 @@ namespace Ryr.ExcelExport
                 do
                 {
                     results = Service.RetrieveMultiple(retrieveQuery);
-                    w.ReportProgress(0, $"Processing Page {++pageNumber}, {results.Entities.Count} records...");
+                    w.ReportProgress(0, $"Processing Page {++pageNumber}, {processedRecordCount}/{totalRecordCountForEntity} ({Math.Round(processedRecordCount * 100.0/totalRecordCountForEntity,2)}%) records...");
 
                     foreach (var result in results.Entities)
                     {
@@ -355,7 +364,7 @@ namespace Ryr.ExcelExport
                             rows.Clear();
                         }
                     }
-                    totalRecordCount += results.Entities.Count;
+                    processedRecordCount += results.Entities.Count;
                     retrieveQuery.PageInfo.PageNumber++;
                     retrieveQuery.PageInfo.PagingCookie = results.PagingCookie;
                 } while (results.MoreRecords);
@@ -365,7 +374,7 @@ namespace Ryr.ExcelExport
                 {
                     WriteToExcel(headers, rows, fileName);
                 }
-                e.Result = totalRecordCount;
+                e.Result = processedRecordCount;
 
             })
             {
