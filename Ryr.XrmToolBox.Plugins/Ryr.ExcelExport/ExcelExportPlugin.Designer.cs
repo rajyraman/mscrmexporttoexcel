@@ -228,7 +228,7 @@
             this.batchSize.Size = new System.Drawing.Size(120, 20);
             this.batchSize.TabIndex = 1;
             this.batchSize.Value = new decimal(new int[] {
-            5000,
+            500,
             0,
             0,
             0});
