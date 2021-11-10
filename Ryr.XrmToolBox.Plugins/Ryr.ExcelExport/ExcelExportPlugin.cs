@@ -46,7 +46,7 @@ namespace Ryr.ExcelExport
             var selectedEntity = e.Argument as EntityMetadata;
 
             var viewsList = ViewHelper.RetrieveViews(selectedEntity, Service);
-
+            viewsList.AddRange(ViewHelper.RetrieveUserViews(selectedEntity, Service));
             foreach (Entity view in viewsList)
             {
                 bool display = true;
