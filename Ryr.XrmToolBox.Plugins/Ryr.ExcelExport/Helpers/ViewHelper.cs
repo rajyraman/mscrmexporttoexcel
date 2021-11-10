@@ -31,7 +31,7 @@ namespace MsCrmTools.ViewLayoutReplicator.Helpers
         /// <summary>
         /// Retrieve the list of views for a specific entity
         /// </summary>
-        /// <param name="entityDisplayName">Logical name of the entity</param>
+        /// <param name="selectedEntity">Logical name of the entity</param>
         /// <param name="service">Organization Service</param>
         /// <returns>List of views</returns>
         public static List<Entity> RetrieveViews(EntityMetadata selectedEntity, IOrganizationService service)
@@ -62,6 +62,44 @@ namespace MsCrmTools.ViewLayoutReplicator.Helpers
             {
                 string errorMessage = CrmExceptionHelper.GetErrorMessage(error, false);
                 throw new Exception("Error while retrieving views: " + errorMessage);
+            }
+        }
+
+        /// <summary>
+        /// Retrieve the list of personal views for a specific entity
+        /// </summary>
+        /// <param name="selectedEntity">Logical name of the entity</param>
+        /// <param name="service">Organization Service</param>
+        /// <returns>List of views</returns>
+        internal static IEnumerable<Entity> RetrieveUserViews(EntityMetadata selectedEntity, IOrganizationService service)
+        {
+            try
+            {
+
+                QueryByAttribute qba = new QueryByAttribute
+                {
+                    EntityName = "userquery",
+                    ColumnSet = new ColumnSet(true)
+                };
+
+                qba.Attributes.AddRange("returnedtypecode", "querytype");
+                qba.Values.AddRange(selectedEntity.ObjectTypeCode.Value, 0);
+
+                EntityCollection views = service.RetrieveMultiple(qba);
+
+                List<Entity> viewsList = new List<Entity>();
+
+                foreach (Entity entity in views.Entities)
+                {
+                    viewsList.Add(entity);
+                }
+
+                return viewsList;
+            }
+            catch (Exception error)
+            {
+                string errorMessage = CrmExceptionHelper.GetErrorMessage(error, false);
+                throw new Exception("Error while retrieving user views: " + errorMessage);
             }
         }
 
