@@ -315,7 +315,7 @@ namespace Ryr.ExcelExport
                 };
                 retrieveQuery.NoLock = true;
                 long totalRecordCountForEntity = 0;
-                if (ConnectionDetail.OrganizationMajorVersion == 9 && ConnectionDetail.OrganizationMinorVersion == 1)
+                if (ConnectionDetail.OrganizationMajorVersion >= 9 && ConnectionDetail.OrganizationMinorVersion >= 1)
                 {
                     totalRecordCountForEntity = ((RetrieveTotalRecordCountResponse)Service.Execute(
                         new RetrieveTotalRecordCountRequest
@@ -341,7 +341,7 @@ namespace Ryr.ExcelExport
                     }
                     else
                     {
-                        w.ReportProgress(0, $"Processing Page {++pageNumber}, {results.Entities.Count} records...");
+                        w.ReportProgress(0, $"Processing Page {++pageNumber}, {results.Entities.Count} records. Total processed {processedRecordCount}...");
                     }
 
                     foreach (var result in results.Entities)
@@ -378,6 +378,8 @@ namespace Ryr.ExcelExport
                     processedRecordCount += results.Entities.Count;
                     retrieveQuery.PageInfo.PageNumber++;
                     retrieveQuery.PageInfo.PagingCookie = results.PagingCookie;
+
+                    if (fetchElements.Attribute("count") != null) break; //if count is specified in FetchXml don't page
                 } while (results.MoreRecords);
 
                 //Write any leftover rows
