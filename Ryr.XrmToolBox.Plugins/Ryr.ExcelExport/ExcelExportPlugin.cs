@@ -41,6 +41,11 @@ namespace Ryr.ExcelExport
             ExecuteMethod(LoadEntities);
         }
 
+        public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail, string actionName, object parameter)
+        {
+            base.UpdateConnection(newService, detail, actionName, parameter);
+            ExecuteMethod(LoadEntities);
+        }
         private void LoadEntities()
         {
             fetchXml = string.Empty;
