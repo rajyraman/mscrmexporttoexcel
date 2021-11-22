@@ -314,11 +314,15 @@ namespace Ryr.ExcelExport
                     Count = fetchXmlCount
                 };
                 retrieveQuery.NoLock = true;
-                var totalRecordCountForEntity = ((RetrieveTotalRecordCountResponse)Service.Execute(
-                    new RetrieveTotalRecordCountRequest
-                    {
-                        EntityNames = new string[] { retrieveQuery.EntityName }
-                    })).EntityRecordCountCollection.First().Value;
+                long totalRecordCountForEntity = 0;
+                if (ConnectionDetail.OrganizationMajorVersion == 9 && ConnectionDetail.OrganizationMinorVersion == 1)
+                {
+                    totalRecordCountForEntity = ((RetrieveTotalRecordCountResponse)Service.Execute(
+                        new RetrieveTotalRecordCountRequest
+                        {
+                            EntityNames = new string[] { retrieveQuery.EntityName }
+                        })).EntityRecordCountCollection.First().Value;
+                }
                 fileNumber = 0;
                 EntityCollection results;
                 var processedRecordCount = 0;
@@ -331,7 +335,14 @@ namespace Ryr.ExcelExport
                 do
                 {
                     results = Service.RetrieveMultiple(retrieveQuery);
-                    w.ReportProgress(0, $"Processing Page {++pageNumber}, {processedRecordCount}/{totalRecordCountForEntity} ({Math.Round(processedRecordCount * 100.0/totalRecordCountForEntity,2)}%) records...");
+                    if (totalRecordCountForEntity > 0)
+                    {
+                        w.ReportProgress(0, $"Processing Page {++pageNumber}, {results.Entities.Count}/{totalRecordCountForEntity} ({Math.Round(results.Entities.Count * 100.0 / totalRecordCountForEntity, 2)}%) records...");
+                    }
+                    else
+                    {
+                        w.ReportProgress(0, $"Processing Page {++pageNumber}, {results.Entities.Count} records...");
+                    }
 
                     foreach (var result in results.Entities)
                     {
