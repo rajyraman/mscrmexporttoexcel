@@ -30,7 +30,7 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(ExcelExportPlugin));
-            CSRichTextBoxSyntaxHighlighting.XMLViewerSettings xmlViewerSettings3 = new CSRichTextBoxSyntaxHighlighting.XMLViewerSettings();
+            CSRichTextBoxSyntaxHighlighting.XMLViewerSettings xmlViewerSettings1 = new CSRichTextBoxSyntaxHighlighting.XMLViewerSettings();
             this.toolStripMain = new System.Windows.Forms.ToolStrip();
             this.tsbClose = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
@@ -42,6 +42,7 @@
             this.toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
             this.tsbEditInFxb = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator5 = new System.Windows.Forms.ToolStripSeparator();
+            this.tsbCancel = new System.Windows.Forms.ToolStripButton();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.splitContainer3 = new System.Windows.Forms.SplitContainer();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
@@ -63,7 +64,6 @@
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.txtFetchXml = new CSRichTextBoxSyntaxHighlighting.XMLViewer();
             this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.tsbCancel = new System.Windows.Forms.ToolStripButton();
             this.toolStripMain.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -179,6 +179,16 @@
             this.toolStripSeparator5.Name = "toolStripSeparator5";
             this.toolStripSeparator5.Size = new System.Drawing.Size(6, 25);
             // 
+            // tsbCancel
+            // 
+            this.tsbCancel.Enabled = false;
+            this.tsbCancel.Image = ((System.Drawing.Image)(resources.GetObject("tsbCancel.Image")));
+            this.tsbCancel.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.tsbCancel.Name = "tsbCancel";
+            this.tsbCancel.Size = new System.Drawing.Size(63, 22);
+            this.tsbCancel.Text = "Cancel";
+            this.tsbCancel.Click += new System.EventHandler(this.tsbCancel_Click);
+            // 
             // splitContainer1
             // 
             this.splitContainer1.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -212,7 +222,7 @@
             // 
             this.splitContainer3.Panel2.Controls.Add(this.gbEntities);
             this.splitContainer3.Size = new System.Drawing.Size(272, 483);
-            this.splitContainer3.SplitterDistance = 59;
+            this.splitContainer3.SplitterDistance = 80;
             this.splitContainer3.TabIndex = 2;
             // 
             // groupBox1
@@ -227,7 +237,7 @@
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox1.Location = new System.Drawing.Point(0, 0);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(272, 59);
+            this.groupBox1.Size = new System.Drawing.Size(272, 80);
             this.groupBox1.TabIndex = 1;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Export Settings";
@@ -312,7 +322,7 @@
             this.gbEntities.Dock = System.Windows.Forms.DockStyle.Fill;
             this.gbEntities.Location = new System.Drawing.Point(0, 0);
             this.gbEntities.Name = "gbEntities";
-            this.gbEntities.Size = new System.Drawing.Size(272, 420);
+            this.gbEntities.Size = new System.Drawing.Size(272, 399);
             this.gbEntities.TabIndex = 0;
             this.gbEntities.TabStop = false;
             this.gbEntities.Text = "Entities";
@@ -328,7 +338,7 @@
             this.lvEntities.Location = new System.Drawing.Point(3, 16);
             this.lvEntities.MultiSelect = false;
             this.lvEntities.Name = "lvEntities";
-            this.lvEntities.Size = new System.Drawing.Size(266, 401);
+            this.lvEntities.Size = new System.Drawing.Size(266, 380);
             this.lvEntities.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.lvEntities.TabIndex = 0;
             this.lvEntities.UseCompatibleStateImageBehavior = false;
@@ -422,12 +432,12 @@
             this.txtFetchXml.Location = new System.Drawing.Point(3, 16);
             this.txtFetchXml.Margin = new System.Windows.Forms.Padding(2);
             this.txtFetchXml.Name = "txtFetchXml";
-            xmlViewerSettings3.AttributeKey = System.Drawing.Color.Red;
-            xmlViewerSettings3.AttributeValue = System.Drawing.Color.Blue;
-            xmlViewerSettings3.Element = System.Drawing.Color.DarkRed;
-            xmlViewerSettings3.Tag = System.Drawing.Color.Blue;
-            xmlViewerSettings3.Value = System.Drawing.Color.Black;
-            this.txtFetchXml.Settings = xmlViewerSettings3;
+            xmlViewerSettings1.AttributeKey = System.Drawing.Color.Red;
+            xmlViewerSettings1.AttributeValue = System.Drawing.Color.Blue;
+            xmlViewerSettings1.Element = System.Drawing.Color.DarkRed;
+            xmlViewerSettings1.Tag = System.Drawing.Color.Blue;
+            xmlViewerSettings1.Value = System.Drawing.Color.Black;
+            this.txtFetchXml.Settings = xmlViewerSettings1;
             this.txtFetchXml.Size = new System.Drawing.Size(618, 305);
             this.txtFetchXml.TabIndex = 0;
             this.txtFetchXml.Text = "";
@@ -436,16 +446,6 @@
             // 
             this.contextMenuStrip1.Name = "contextMenuStrip1";
             this.contextMenuStrip1.Size = new System.Drawing.Size(61, 4);
-            // 
-            // tsbCancel
-            // 
-            this.tsbCancel.Enabled = false;
-            this.tsbCancel.Image = ((System.Drawing.Image)(resources.GetObject("tsbCancel.Image")));
-            this.tsbCancel.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.tsbCancel.Name = "tsbCancel";
-            this.tsbCancel.Size = new System.Drawing.Size(63, 22);
-            this.tsbCancel.Text = "Cancel";
-            this.tsbCancel.Click += new System.EventHandler(this.tsbCancel_Click);
             // 
             // ExcelExportPlugin
             // 
