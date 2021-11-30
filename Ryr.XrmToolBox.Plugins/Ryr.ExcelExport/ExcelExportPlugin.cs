@@ -14,7 +14,6 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Windows.Forms;
 using System.Xml.Linq;
 using Tanguy.WinForm.Utilities.DelegatesHelpers;
@@ -24,7 +23,7 @@ using XrmToolBox.Extensibility.Interfaces;
 
 namespace Ryr.ExcelExport
 {
-    public partial class ExcelExportPlugin : PluginControlBase, IMessageBusHost, IGitHubPlugin, IHelpPlugin, IStatusBarMessenger, IShortcutReceiver
+    public partial class ExcelExportPlugin : PluginControlBase, IMessageBusHost, IGitHubPlugin, IHelpPlugin, IStatusBarMessenger
     {
         private static int fileNumber = 0;
         private List<EntityMetadata> entitiesCache;
@@ -298,6 +297,7 @@ namespace Ryr.ExcelExport
                 {
                     return;
                 }
+                tsbCancel.Enabled = true;
                 var fetchElements = XElement.Parse(txtFetchXml.Text);
                 foreach (var linkElement in fetchElements.Descendants("link-entity"))
                 {
@@ -319,15 +319,6 @@ namespace Ryr.ExcelExport
                     Count = fetchXmlCount
                 };
                 retrieveQuery.NoLock = true;
-                long totalRecordCountForEntity = 0;
-                if (ConnectionDetail.OrganizationMajorVersion >= 9 && ConnectionDetail.OrganizationMinorVersion >= 1)
-                {
-                    totalRecordCountForEntity = ((RetrieveTotalRecordCountResponse)Service.Execute(
-                        new RetrieveTotalRecordCountRequest
-                        {
-                            EntityNames = new string[] { retrieveQuery.EntityName }
-                        })).EntityRecordCountCollection.First().Value;
-                }
                 fileNumber = 0;
                 EntityCollection results;
                 var processedRecordCount = 0;
@@ -337,20 +328,19 @@ namespace Ryr.ExcelExport
 
                 var attributes = RetrieveAttributeMetadata(fetchElements, w, headers);
 
+                var watch = new Stopwatch();
+                watch.Start();
                 do
                 {
                     results = Service.RetrieveMultiple(retrieveQuery);
-                    if (totalRecordCountForEntity > 0)
-                    {
-                        w.ReportProgress(0, $"Processing Page {++pageNumber}, {results.Entities.Count}/{totalRecordCountForEntity} ({Math.Round(results.Entities.Count * 100.0 / totalRecordCountForEntity, 2)}%) records...");
-                    }
-                    else
-                    {
-                        w.ReportProgress(0, $"Processing Page {++pageNumber}, {results.Entities.Count} records. Total processed {processedRecordCount}...");
-                    }
-
+                    w.ReportProgress(0, $"Processing Page {++pageNumber}, {fetchXmlCount} records...");
                     foreach (var result in results.Entities)
                     {
+                        if (w.CancellationPending)
+                        {
+                            e.Cancel = true;
+                            break;
+                        }
                         var rowValues = new List<string>();
                         foreach (var attribute in attributes)
                         {
@@ -385,32 +375,42 @@ namespace Ryr.ExcelExport
                     retrieveQuery.PageInfo.PagingCookie = results.PagingCookie;
 
                     if (fetchElements.Attribute("count") != null) break; //if count is specified in FetchXml don't page
-                } while (results.MoreRecords);
+                } while (results.MoreRecords && !w.CancellationPending);
 
                 //Write any leftover rows
                 if (rows.Any())
                 {
                     WriteToExcel(headers, rows, fileName);
                 }
-                e.Result = processedRecordCount;
+                watch.Stop();
+                e.Result = $"{processedRecordCount.ToString("#,#")} records exported in {watch.Elapsed.TotalMinutes.ToString("F")} minutes";
 
             })
             {
+                IsCancelable = true,
                 PostWorkCallBack = (c) =>
                 {
-                    if (c.Error != null)
+                    if (c.Cancelled)
                     {
-                        MessageBox.Show(this, "An error occured while exporting the Excel file: " + c.Error.ToString(), "Error",
-                                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        SendMessageToStatusBar(this, new StatusBarMessageEventArgs("Export Cancelled"));
                     }
                     else
                     {
-                        SendMessageToStatusBar(this, new StatusBarMessageEventArgs($"{c.Result} records exported.."));
-                        if (DialogResult.Yes == MessageBox.Show(this, "Do you want to open exported file?", "Question", MessageBoxButtons.YesNo, MessageBoxIcon.Question))
+                        if (c.Error != null)
                         {
-                            Process.Start(fileName);
+                            MessageBox.Show(this, "An error occured while exporting the Excel file: " + c.Error.ToString(), "Error",
+                                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                        else
+                        {
+                            SendMessageToStatusBar(this, new StatusBarMessageEventArgs(c.Result.ToString()));
+                            if (DialogResult.Yes == MessageBox.Show(this, "Do you want to open exported file?", "Question", MessageBoxButtons.YesNo, MessageBoxIcon.Question))
+                            {
+                                Process.Start(fileName);
+                            }
                         }
                     }
+                    tsbCancel.Enabled = false;
                 },
                 ProgressChanged = (c) => SetWorkingMessage(c.UserState.ToString())
             });
@@ -464,17 +464,18 @@ namespace Ryr.ExcelExport
             string cacheKey;
             switch (attributeValue)
             {
+                case BooleanManagedProperty bm:
+                    return bm.Value;
                 case EntityReference e:
                     return e.Name;
                 case OptionSetValue o:
                     var optionSetValue = o.Value;
-                    return RetrieveOptionsetText(optionSetValue, attributeName, entityName);
+                    return RetrieveOptionSetText(optionSetValue, attributeName, entityName);
                 case OptionSetValueCollection oc:
-                    var optionSetValueCollection = oc;
                     var optionSetValueTextValues = new List<string>();
                     foreach(var optionSet in oc)
                     {
-                        optionSetValueTextValues.Add(RetrieveOptionsetText(optionSet.Value, attributeName, entityName));
+                        optionSetValueTextValues.Add(RetrieveOptionSetText(optionSet.Value, attributeName, entityName));
                     }                                       
                     return string.Join("; ", optionSetValueTextValues);
                 case bool b:
@@ -516,12 +517,12 @@ namespace Ryr.ExcelExport
             return optionsetText;
         }        
 
-        private string RetrieveOptionsetText(int optionsetValue, string attributeName, string entityName)
+        private string RetrieveOptionSetText(int optionsetValue, string attributeName, string entityName)
         {
             var cacheKey = $"{attributeName}:{entityName}:{optionsetValue}";
             if (!optionsetCache.ContainsKey(cacheKey))
             {
-                var optionsetText = string.Empty;
+                var optionSetText = string.Empty;
                 var retrieveAttributeRequest = new RetrieveAttributeRequest
                 {
                     EntityLogicalName = entityName,
@@ -537,9 +538,10 @@ namespace Ryr.ExcelExport
                 }
                 if (optionMetaData != null)
                 {
-                    optionsetText = optionMetaData.Label.UserLocalizedLabel.Label;
+                    optionSetText = optionMetaData.Label.UserLocalizedLabel.Label;
                 }
-                return optionsetText;
+                optionsetCache.Add(cacheKey, optionSetText);
+                return optionSetText;
             }
             else
             {
@@ -615,18 +617,6 @@ namespace Ryr.ExcelExport
             }
         }
 
-        public void ReceiveKeyPressShortcut(KeyPressEventArgs e)
-        {
-        }
-
-        public void ReceiveKeyUpShortcut(KeyEventArgs e)
-        {
-        }
-
-        public void ReceivePreviewKeyDownShortcut(PreviewKeyDownEventArgs e)
-        {
-        }
-
         public event EventHandler<MessageBusEventArgs> OnOutgoingMessage;
         public event EventHandler<StatusBarMessageEventArgs> SendMessageToStatusBar;
 
@@ -635,6 +625,33 @@ namespace Ryr.ExcelExport
         public string UserName => "rajyraman";
 
         public string HelpUrl => "https://github.com/rajyraman/mscrmexporttoexcel/blob/master/README.md";
+
+        private void txtSearch_KeyUp(object sender, KeyEventArgs e)
+        {
+            lvEntities.BeginUpdate();
+
+            lvEntities.Items.Clear();
+            var filteredEntities = entitiesCache.Where(x => x.LogicalName.Contains(txtSearch.Text) ||
+                (x.DisplayName.UserLocalizedLabel != null && 
+                x.DisplayName.UserLocalizedLabel.Label != null && 
+                x.DisplayName.UserLocalizedLabel.Label.Contains(txtSearch.Text))).ToList();
+
+            var list = new List<ListViewItem>();
+            foreach (EntityMetadata emd in filteredEntities)
+            {
+                var item = new ListViewItem { Text = emd.DisplayName.UserLocalizedLabel.Label, Tag = emd.LogicalName };
+                item.SubItems.Add(emd.LogicalName);
+                list.Add(item);
+            }
+
+            lvEntities.Items.AddRange(list.ToArray());
+            lvEntities.EndUpdate();
+        }
+
+        private void tsbCancel_Click(object sender, EventArgs e)
+        {
+            CancelWorker();
+        }
     }
 
     internal class AttributeInfo
