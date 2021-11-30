@@ -14,7 +14,6 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Windows.Forms;
 using System.Xml.Linq;
 using Tanguy.WinForm.Utilities.DelegatesHelpers;
@@ -24,7 +23,7 @@ using XrmToolBox.Extensibility.Interfaces;
 
 namespace Ryr.ExcelExport
 {
-    public partial class ExcelExportPlugin : PluginControlBase, IMessageBusHost, IGitHubPlugin, IHelpPlugin, IStatusBarMessenger, IShortcutReceiver
+    public partial class ExcelExportPlugin : PluginControlBase, IMessageBusHost, IGitHubPlugin, IHelpPlugin, IStatusBarMessenger
     {
         private static int fileNumber = 0;
         private List<EntityMetadata> entitiesCache;
@@ -35,18 +34,91 @@ namespace Ryr.ExcelExport
         {
             InitializeComponent();
         }
+
+        private void tsbLoadEntities_Click(object sender, EventArgs e)
+        {
+            ExecuteMethod(LoadEntities);
+        }
+
         public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail, string actionName, object parameter)
         {
             base.UpdateConnection(newService, detail, actionName, parameter);
-            lvEntities.UpdateConnection(Service);
+            ExecuteMethod(LoadEntities);
+        }
+        private void LoadEntities()
+        {
+            fetchXml = string.Empty;
+            lvEntities.Items.Clear();
+            gbEntities.Enabled = false;
+            tsbLoadEntities.Enabled = false;
+            tsbRefresh.Enabled = false;
+            tsbExportExcel.Enabled = false;
+            tsbEditInFxb.Enabled = false;
+            lvViews.Items.Clear();
+            txtFetchXml.Text = "";
+            WorkAsync(new WorkAsyncInfo("Loading entities...", e =>
+            {
+                e.Result = MetadataHelper.RetrieveEntities(Service);
+            })
+            {
+                PostWorkCallBack = completedargs =>
+                {
+                    if (completedargs.Error != null)
+                    {
+                        string errorMessage = CrmExceptionHelper.GetErrorMessage(completedargs.Error, true);
+                        CommonDelegates.DisplayMessageBox(ParentForm, errorMessage, "Error", MessageBoxButtons.OK,
+                                                          MessageBoxIcon.Error);
+                    }
+                    else
+                    {
+                        entitiesCache = (List<EntityMetadata>)completedargs.Result;
+                        lvEntities.Items.Clear();
+                        var list = new List<ListViewItem>();
+                        foreach (EntityMetadata emd in (List<EntityMetadata>)completedargs.Result)
+                        {
+                            var item = new ListViewItem { Text = emd.DisplayName.UserLocalizedLabel.Label, Tag = emd.LogicalName };
+                            item.SubItems.Add(emd.LogicalName);
+                            list.Add(item);
+                        }
+
+                        lvEntities.Items.AddRange(list.ToArray());
+                        lvEntities.AutoResizeColumns(ColumnHeaderAutoResizeStyle.ColumnContent);
+                        gbEntities.Enabled = true;
+                        gbEntities.Enabled = true;
+                        tsbLoadEntities.Enabled = true;
+                        tsbRefresh.Enabled = true;
+                    }
+                }
+            });
+        }
+
+        private void lvEntities_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (lvEntities.SelectedItems.Count > 0)
+            {
+                string entityLogicalName = lvEntities.SelectedItems[0].Tag.ToString();
+
+                // Reinit other controls
+                lvViews.Items.Clear();
+                txtFetchXml.Text = string.Empty;
+                fetchXml = string.Empty;
+                Cursor = Cursors.WaitCursor;
+
+                // Launch treatment
+                var bwFillViews = new BackgroundWorker();
+                bwFillViews.DoWork += BwFillViewsDoWork;
+                bwFillViews.RunWorkerAsync(entityLogicalName);
+                bwFillViews.RunWorkerCompleted += BwFillViewsRunWorkerCompleted;
+            }
         }
 
         private void BwFillViewsDoWork(object sender, DoWorkEventArgs e)
         {
-            var selectedEntity = e.Argument as EntityMetadata;
+            string entityLogicalName = e.Argument.ToString();
 
-            var viewsList = ViewHelper.RetrieveViews(selectedEntity, Service);
-            viewsList.AddRange(ViewHelper.RetrieveUserViews(selectedEntity, Service));
+            List<Entity> viewsList = ViewHelper.RetrieveViews(entityLogicalName, entitiesCache, Service);
+            viewsList.AddRange(ViewHelper.RetrieveUserViews(entityLogicalName, entitiesCache, Service));
+
             foreach (Entity view in viewsList)
             {
                 bool display = true;
@@ -131,7 +203,7 @@ namespace Ryr.ExcelExport
             lvViews.AutoResizeColumns(ColumnHeaderAutoResizeStyle.ColumnContent);
         }
 
-        private void BwFillViewsRunWorkerCompleted(RunWorkerCompletedEventArgs e)
+        private void BwFillViewsRunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
             Cursor = Cursors.Default;
             lvViews.Enabled = true;
@@ -174,7 +246,7 @@ namespace Ryr.ExcelExport
             var dialog = new SaveFileDialog
             {
                 Filter = "Excel  Workbook(*.xlsx)|*.xlsx",
-                FileName = $"{lvEntities.SelectedEntity.CollectionSchemaName}-{DateTime.Today.ToString("yyyyMMdd")}.xlsx"
+                FileName = $"{lvEntities.SelectedItems[0].SubItems[0].Text}-{DateTime.Today.ToString("yyyyMMdd")}.xlsx"
             };
             if (dialog.ShowDialog() == DialogResult.OK)
             {
@@ -225,6 +297,7 @@ namespace Ryr.ExcelExport
                 {
                     return;
                 }
+                tsbCancel.Enabled = true;
                 var fetchElements = XElement.Parse(txtFetchXml.Text);
                 foreach (var linkElement in fetchElements.Descendants("link-entity"))
                 {
@@ -246,11 +319,6 @@ namespace Ryr.ExcelExport
                     Count = fetchXmlCount
                 };
                 retrieveQuery.NoLock = true;
-                var totalRecordCountForEntity = ((RetrieveTotalRecordCountResponse)Service.Execute(
-                    new RetrieveTotalRecordCountRequest
-                    {
-                        EntityNames = new string[] { retrieveQuery.EntityName }
-                    })).EntityRecordCountCollection.First().Value;
                 fileNumber = 0;
                 EntityCollection results;
                 var processedRecordCount = 0;
@@ -260,13 +328,19 @@ namespace Ryr.ExcelExport
 
                 var attributes = RetrieveAttributeMetadata(fetchElements, w, headers);
 
+                var watch = new Stopwatch();
+                watch.Start();
                 do
                 {
                     results = Service.RetrieveMultiple(retrieveQuery);
-                    w.ReportProgress(0, $"Processing Page {++pageNumber}, {processedRecordCount}/{totalRecordCountForEntity} ({Math.Round(processedRecordCount * 100.0/totalRecordCountForEntity,2)}%) records...");
-
+                    w.ReportProgress(0, $"Processing Page {++pageNumber}, {fetchXmlCount} records...");
                     foreach (var result in results.Entities)
                     {
+                        if (w.CancellationPending)
+                        {
+                            e.Cancel = true;
+                            break;
+                        }
                         var rowValues = new List<string>();
                         foreach (var attribute in attributes)
                         {
@@ -299,32 +373,44 @@ namespace Ryr.ExcelExport
                     processedRecordCount += results.Entities.Count;
                     retrieveQuery.PageInfo.PageNumber++;
                     retrieveQuery.PageInfo.PagingCookie = results.PagingCookie;
-                } while (results.MoreRecords);
+
+                    if (fetchElements.Attribute("count") != null) break; //if count is specified in FetchXml don't page
+                } while (results.MoreRecords && !w.CancellationPending);
 
                 //Write any leftover rows
                 if (rows.Any())
                 {
                     WriteToExcel(headers, rows, fileName);
                 }
-                e.Result = processedRecordCount;
+                watch.Stop();
+                e.Result = $"{processedRecordCount.ToString("#,#")} records exported in {watch.Elapsed.TotalMinutes.ToString("F")} minutes";
 
             })
             {
+                IsCancelable = true,
                 PostWorkCallBack = (c) =>
                 {
-                    if (c.Error != null)
+                    if (c.Cancelled)
                     {
-                        MessageBox.Show(this, "An error occured while exporting the Excel file: " + c.Error.ToString(), "Error",
-                                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        SendMessageToStatusBar(this, new StatusBarMessageEventArgs("Export Cancelled"));
                     }
                     else
                     {
-                        SendMessageToStatusBar(this, new StatusBarMessageEventArgs($"{c.Result} records exported.."));
-                        if (DialogResult.Yes == MessageBox.Show(this, "Do you want to open exported file?", "Question", MessageBoxButtons.YesNo, MessageBoxIcon.Question))
+                        if (c.Error != null)
                         {
-                            Process.Start(fileName);
+                            MessageBox.Show(this, "An error occured while exporting the Excel file: " + c.Error.ToString(), "Error",
+                                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                        else
+                        {
+                            SendMessageToStatusBar(this, new StatusBarMessageEventArgs(c.Result.ToString()));
+                            if (DialogResult.Yes == MessageBox.Show(this, "Do you want to open exported file?", "Question", MessageBoxButtons.YesNo, MessageBoxIcon.Question))
+                            {
+                                Process.Start(fileName);
+                            }
                         }
                     }
+                    tsbCancel.Enabled = false;
                 },
                 ProgressChanged = (c) => SetWorkingMessage(c.UserState.ToString())
             });
@@ -378,17 +464,18 @@ namespace Ryr.ExcelExport
             string cacheKey;
             switch (attributeValue)
             {
+                case BooleanManagedProperty bm:
+                    return bm.Value;
                 case EntityReference e:
                     return e.Name;
                 case OptionSetValue o:
                     var optionSetValue = o.Value;
-                    return RetrieveOptionsetText(optionSetValue, attributeName, entityName);
+                    return RetrieveOptionSetText(optionSetValue, attributeName, entityName);
                 case OptionSetValueCollection oc:
-                    var optionSetValueCollection = oc;
                     var optionSetValueTextValues = new List<string>();
                     foreach(var optionSet in oc)
                     {
-                        optionSetValueTextValues.Add(RetrieveOptionsetText(optionSet.Value, attributeName, entityName));
+                        optionSetValueTextValues.Add(RetrieveOptionSetText(optionSet.Value, attributeName, entityName));
                     }                                       
                     return string.Join("; ", optionSetValueTextValues);
                 case bool b:
@@ -430,12 +517,12 @@ namespace Ryr.ExcelExport
             return optionsetText;
         }        
 
-        private string RetrieveOptionsetText(int optionsetValue, string attributeName, string entityName)
+        private string RetrieveOptionSetText(int optionsetValue, string attributeName, string entityName)
         {
             var cacheKey = $"{attributeName}:{entityName}:{optionsetValue}";
             if (!optionsetCache.ContainsKey(cacheKey))
             {
-                var optionsetText = string.Empty;
+                var optionSetText = string.Empty;
                 var retrieveAttributeRequest = new RetrieveAttributeRequest
                 {
                     EntityLogicalName = entityName,
@@ -451,14 +538,22 @@ namespace Ryr.ExcelExport
                 }
                 if (optionMetaData != null)
                 {
-                    optionsetText = optionMetaData.Label.UserLocalizedLabel.Label;
+                    optionSetText = optionMetaData.Label.UserLocalizedLabel.Label;
                 }
-                return optionsetText;
+                optionsetCache.Add(cacheKey, optionSetText);
+                return optionSetText;
             }
             else
             {
                 return optionsetCache[cacheKey].ToString();
             }
+        }
+
+        private void lvEntities_ColumnClick(object sender, ColumnClickEventArgs e)
+        {
+            lvEntities.SelectedItems.Clear();
+            lvEntities.Sorting = lvEntities.Sorting == SortOrder.Ascending ? SortOrder.Descending : SortOrder.Ascending;
+            lvEntities.ListViewItemSorter = new ListViewItemComparer(e.Column, lvEntities.Sorting);
         }
 
         private void lvViews_ColumnClick(object sender, ColumnClickEventArgs e)
@@ -471,6 +566,11 @@ namespace Ryr.ExcelExport
         private void tsbClose_Click(object sender, EventArgs e)
         {
             base.CloseTool();
+        }
+
+        private void tsbRefresh_Click(object sender, EventArgs e)
+        {
+            ExecuteMethod(LoadEntities);
         }
 
         private void tsbEditInFxb_Click(object sender, EventArgs e)
@@ -517,18 +617,6 @@ namespace Ryr.ExcelExport
             }
         }
 
-        public void ReceiveKeyPressShortcut(KeyPressEventArgs e)
-        {
-        }
-
-        public void ReceiveKeyUpShortcut(KeyEventArgs e)
-        {
-        }
-
-        public void ReceivePreviewKeyDownShortcut(PreviewKeyDownEventArgs e)
-        {
-        }
-
         public event EventHandler<MessageBusEventArgs> OnOutgoingMessage;
         public event EventHandler<StatusBarMessageEventArgs> SendMessageToStatusBar;
 
@@ -538,38 +626,31 @@ namespace Ryr.ExcelExport
 
         public string HelpUrl => "https://github.com/rajyraman/mscrmexporttoexcel/blob/master/README.md";
 
-        private void lvEntities_SelectedItemChanged(object sender, EventArgs ea)
+        private void txtSearch_KeyUp(object sender, KeyEventArgs e)
         {
-            if (lvEntities.SelectedEntity == null) return;
+            lvEntities.BeginUpdate();
 
-            // Reinit other controls
-            lvViews.Items.Clear();
-            txtFetchXml.Text = string.Empty;
-            fetchXml = string.Empty;
-            Cursor = Cursors.WaitCursor;
+            lvEntities.Items.Clear();
+            var filteredEntities = entitiesCache.Where(x => x.LogicalName.Contains(txtSearch.Text) ||
+                (x.DisplayName.UserLocalizedLabel != null && 
+                x.DisplayName.UserLocalizedLabel.Label != null && 
+                x.DisplayName.UserLocalizedLabel.Label.Contains(txtSearch.Text))).ToList();
 
-            WorkAsync(new WorkAsyncInfo
+            var list = new List<ListViewItem>();
+            foreach (EntityMetadata emd in filteredEntities)
             {
-                Message = "Loading views..",
-                Work = BwFillViewsDoWork,
-                AsyncArgument = lvEntities.SelectedEntity,
-                ProgressChanged = e =>
-                {
-                    SetWorkingMessage(e.UserState.ToString());
-                },
-                PostWorkCallBack = BwFillViewsRunWorkerCompleted
-            });
+                var item = new ListViewItem { Text = emd.DisplayName.UserLocalizedLabel.Label, Tag = emd.LogicalName };
+                item.SubItems.Add(emd.LogicalName);
+                list.Add(item);
+            }
+
+            lvEntities.Items.AddRange(list.ToArray());
+            lvEntities.EndUpdate();
         }
 
-        private void lvEntities_LoadDataComplete(object sender, EventArgs e)
+        private void tsbCancel_Click(object sender, EventArgs e)
         {
-            if (entitiesCache == null)
-            {
-                entitiesCache = lvEntities.AllEntities;
-            }
-            lvViews.Items.Clear();
-            txtFetchXml.Text = string.Empty;
-            fetchXml = string.Empty;
+            CancelWorker();
         }
     }
 

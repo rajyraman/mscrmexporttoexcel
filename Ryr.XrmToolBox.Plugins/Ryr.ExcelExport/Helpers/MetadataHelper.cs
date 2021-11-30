@@ -36,7 +36,7 @@ namespace MsCrmTools.ViewLayoutReplicator.Helpers
 
             foreach (EntityMetadata emd in response.EntityMetadata)
             {
-                if (emd.DisplayName.UserLocalizedLabel != null && (emd.IsCustomizable.Value || emd.IsManaged.Value == false))
+                if (emd.DisplayName.UserLocalizedLabel != null && emd.IsPrivate == false)
                 {
                     entities.Add(emd);
                 }
